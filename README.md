@@ -48,10 +48,26 @@ Todo monto usa `Decimal(max_digits=18, decimal_places=4)`. Prohibido `float` en 
 - `POST /api/auth/self-exclusion/`
 - `POST /api/auth/verify-account/` (solo admin)
 - `POST /api/wallet/deposit/`
+- `POST /api/wallet/withdraw/`
 - `GET /api/wallet/balance/`
 - `POST /api/betting/bets/`
+- `POST /api/betting/bets/<bet_id>/cashout/`
 - `POST /api/betting/events/<event_id>/settle/` (solo admin)
 - `GET /api/audit/verify/` (solo admin)
+- `GET /api/audit/suspicious/` (solo admin)
+- `GET /api/dashboard/` (solo admin)
+
+## Frontend
+
+Paginas disponibles con Django Templates + Tailwind CDN:
+
+- `/` - eventos programados
+- `/login/` - inicio de sesion
+- `/register/` - registro de usuario
+- `/wallet/` - saldo, deposito, retiro e historial contable
+- `/historial/` - historial de apuestas
+- `/perfil/` - limites y autoexclusion
+- `/dashboard/` - dashboard de operador para staff
 
 ## Seed de datos
 
@@ -108,10 +124,14 @@ docker compose exec web pytest --cov=apps --cov-report=term-missing
 
 ## Checklist de entrega
 
-- [ ] `docker compose up` levanta sin errores
+- [ ] `docker compose up` levanta sin errores desde cero
+- [ ] migraciones aplican sin errores
+- [ ] `seedall` crea usuarios, wallets y eventos
+- [ ] endpoints nuevos responden segun permisos
+- [ ] frontend MVT disponible
 - [ ] tests `pytest` en verde
 - [ ] cobertura >= 80% en `apps/wallet` y `apps/betting`
-- [ ] seed funcionando (usuarios + eventos + wallets)
+- [ ] reporte de cobertura guardado en `docs/coverage-report.txt`
 
 ---
 Plataforma educativa con moneda virtual. No constituye una casa de apuestas.

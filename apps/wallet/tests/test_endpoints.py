@@ -7,7 +7,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.users.choices import AccountStatus
-from apps.wallet.services import deposit, get_or_create_wallet
+from apps.wallet.services import deposit, get_balance, get_or_create_wallet
 
 User = get_user_model()
 
@@ -171,3 +171,54 @@ def test_balance_endpoint_sin_auth(client):
     url = reverse('wallet-balance')
     response = client.get(url)
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_withdraw_endpoint_ok_reduce_saldo(client_autenticado):
+    client, user = client_autenticado
+    get_or_create_wallet(user)
+    deposit(user, Decimal('300.0000'))
+
+    response = client.post(reverse('wallet-withdraw'), {'amount': '100.0000'}, format='json')
+
+    assert response.status_code == 201
+    assert response.data['message'] == 'Retiro virtual realizado correctamente.'
+    assert Decimal(response.data['balance']) == Decimal('200.0000')
+    assert get_balance(user) == Decimal('200.0000')
+
+
+@pytest.mark.django_db
+def test_withdraw_endpoint_saldo_insuficiente(client_autenticado):
+    client, user = client_autenticado
+    get_or_create_wallet(user)
+    deposit(user, Decimal('50.0000'))
+
+    response = client.post(reverse('wallet-withdraw'), {'amount': '100.0000'}, format='json')
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_withdraw_endpoint_sin_auth(client):
+    response = client.post(reverse('wallet-withdraw'), {'amount': '100.0000'}, format='json')
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_withdraw_endpoint_cuenta_no_verificada(client, usuario_pendiente):
+    client.force_authenticate(user=usuario_pendiente)
+    response = client.post(reverse('wallet-withdraw'), {'amount': '100.0000'}, format='json')
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_withdraw_endpoint_idempotente(client_autenticado):
+    client, user = client_autenticado
+    get_or_create_wallet(user)
+    deposit(user, Decimal('300.0000'))
+    tid = str(uuid.uuid4())
+
+    client.post(reverse('wallet-withdraw'), {'amount': '100.0000'}, format='json', HTTP_IDEMPOTENCY_KEY=tid)
+    client.post(reverse('wallet-withdraw'), {'amount': '100.0000'}, format='json', HTTP_IDEMPOTENCY_KEY=tid)
+
+    assert get_balance(user) == Decimal('200.0000')

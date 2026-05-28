@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
+    path('', include('apps.web.urls')),
     path('admin/', admin.site.urls),
     path('api/', include('apps.audit.urls')),
     path('api/', include('apps.betting.urls')),

@@ -8,12 +8,15 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.audit.models import AuditLog
+from apps.audit.models import SuspiciousActivity
 from apps.audit.services import verify_chain
 from apps.betting.choices import BetStatus
 from apps.betting.models import Bet, Event, Market, Selection
 from apps.users.choices import AccountStatus
 from apps.wallet.models import Direction, LedgerEntry
 from apps.wallet.services import deposit, get_or_create_wallet
+from apps.wallet.services import reserve_for_bet
+from apps.betting.services import cashout
 
 User = get_user_model()
 
@@ -182,3 +185,82 @@ def test_verify_endpoint_requiere_admin(client, regular_user):
     response = client.get(reverse('audit-verify'))
 
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_apuestas_rapidas_crea_suspicious_activity(regular_user, market_with_selection):
+    market, selection = market_with_selection
+    for _ in range(6):
+        Bet.objects.create(
+            user=regular_user,
+            market=market,
+            selection=selection,
+            stake=Decimal('1.0000'),
+            odds=selection.odds,
+            transaction_id=uuid.uuid4(),
+        )
+
+    assert SuspiciousActivity.objects.filter(
+        user=regular_user,
+        rule_triggered='apuestas_rapidas',
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_deposito_cashout_crea_suspicious_activity(regular_user, market_with_selection):
+    market, selection = market_with_selection
+    get_or_create_wallet(regular_user)
+    deposit(regular_user, Decimal('100.0000'))
+    reserve_for_bet(regular_user, Decimal('10.0000'))
+    bet = Bet.objects.create(
+        user=regular_user,
+        market=market,
+        selection=selection,
+        stake=Decimal('10.0000'),
+        odds=selection.odds,
+        transaction_id=uuid.uuid4(),
+    )
+
+    cashout(bet, Decimal('2.0000'), transaction_id=uuid.uuid4())
+
+    assert SuspiciousActivity.objects.filter(
+        user=regular_user,
+        rule_triggered='deposito_cashout',
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_suspicious_endpoint_solo_admin(client, admin_user, regular_user):
+    SuspiciousActivity.objects.create(
+        user=regular_user,
+        rule_triggered='apuestas_rapidas',
+        detail={'count': 6},
+    )
+
+    client.force_authenticate(user=regular_user)
+    forbidden = client.get(reverse('audit-suspicious'))
+    assert forbidden.status_code == 403
+
+    client.force_authenticate(user=admin_user)
+    response = client.get(reverse('audit-suspicious'))
+    assert response.status_code == 200
+    assert response.data['count'] == 1
+    assert response.data['results'][0]['rule_triggered'] == 'apuestas_rapidas'
+
+
+@pytest.mark.django_db
+def test_dashboard_endpoint_admin(client, admin_user):
+    client.force_authenticate(user=admin_user)
+
+    response = client.get(reverse('api-dashboard'))
+
+    assert response.status_code == 200
+    assert set(response.data) == {
+        'ggr',
+        'total_bets',
+        'total_bets_won',
+        'total_bets_lost',
+        'total_bets_pending',
+        'active_users',
+        'exposure_by_event',
+    }

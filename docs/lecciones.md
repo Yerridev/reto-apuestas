@@ -33,3 +33,24 @@
 **Por qué falló:** El DNI peruano tiene 8 dígitos + 1 dígito verificador = 9 caracteres. Los tests usaban cadenas de 8 sin calcular el DV.
 
 **Qué aprendí:** Calcular el DV correctamente para cada DNI de prueba. Para `87654325`, el DV es `7` (módulo 11 con pesos [3,2,7,6,5,4,3,2]), así que el DNI completo debe ser `876543257`.
+## Sprint 2 (28 Mayo 2026)
+
+### Intento fallido 5: Puerto PostgreSQL ocupado por otro contenedor
+
+**Que paso:** Al levantar FairBet Lab con Docker Compose, el servicio `db` no pudo publicar `5432` porque otro proyecto ya tenia un contenedor PostgreSQL usando ese puerto.
+
+**Por que fallo:** Docker no permite dos bindings simultaneos al mismo puerto del host. Aunque internamente cada stack puede usar `db:5432`, el host solo puede exponer un servicio en `localhost:5432`.
+
+**Solucion:** Se agrego `docker-compose.override.yml` para publicar PostgreSQL de FairBet Lab como `5433:5432`, manteniendo `POSTGRES_HOST=db` y `POSTGRES_PORT=5432` dentro de Docker.
+
+**Aprendizaje:** Los puertos internos y externos de Docker son problemas distintos. Cambiar el puerto del host no requiere cambiar la conexion interna entre contenedores.
+
+### Intento fallido 6: Override de Docker creado fuera del repositorio
+
+**Que paso:** El primer `docker-compose.override.yml` quedo en la carpeta padre y Compose no lo estaba leyendo desde el proyecto.
+
+**Por que fallo:** Docker Compose carga el override desde el directorio del archivo `docker-compose.yml` o desde los archivos pasados explicitamente. Al estar fuera del repo, la configuracion efectiva seguia publicando `5432`.
+
+**Solucion:** Se movio el override a la raiz de `reto-apuestas` y se uso `ports: !override` para reemplazar el mapeo original en vez de sumarlo.
+
+**Aprendizaje:** Antes de asumir que Compose tomo un cambio, conviene ejecutar `docker compose config` y revisar la configuracion efectiva.

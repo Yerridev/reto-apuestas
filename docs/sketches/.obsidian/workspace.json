@@ -1,0 +1,186 @@
+{
+  "main": {
+    "id": "6b314d7cd1a8b312",
+    "type": "split",
+    "children": [
+      {
+        "id": "b7e68ee502f582e4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "94af4fe9d8737e46",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "Diagrama-ER.jpeg"
+              },
+              "icon": "lucide-image",
+              "title": "Diagrama-ER"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "28a32c66196268d9",
+    "type": "split",
+    "children": [
+      {
+        "id": "5bba196728518a93",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b7d4eadab0ed0fa3",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorador de archivos"
+            }
+          },
+          {
+            "id": "a9bcb93952ccfcca",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Buscar"
+            }
+          },
+          {
+            "id": "04210b6eaf1a4a00",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Marcadores"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "c9465a5ad40dfe92",
+    "type": "split",
+    "children": [
+      {
+        "id": "697aa7abc18ba334",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "92411f622b1c3331",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Diagrama-ER.jpeg",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Enlaces entrantes de Diagrama-ER"
+            }
+          },
+          {
+            "id": "cde4299987b8ffdc",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Diagrama-ER.jpeg",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Enlaces salientes de Diagrama-ER"
+            }
+          },
+          {
+            "id": "c650527ba69ad81f",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etiquetas"
+            }
+          },
+          {
+            "id": "d0c954ad03b9abbf",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Todas las propiedades"
+            }
+          },
+          {
+            "id": "b67a0f0841a35fc7",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Diagrama-ER.jpeg",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Esquema de Diagrama-ER"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Abrir selector rápido": false,
+      "graph:Abrir vista gráfica": false,
+      "canvas:Crear nuevo lienzo": false,
+      "daily-notes:Abrir la nota de hoy": false,
+      "templates:Insertar plantilla": false,
+      "bases:Crear nueva base": false,
+      "command-palette:Abrir paleta de comandos": false
+    }
+  },
+  "active": "b7d4eadab0ed0fa3",
+  "lastOpenFiles": []
+}

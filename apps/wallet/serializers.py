@@ -32,6 +32,21 @@ class DepositSerializer(serializers.Serializer):
         return data
 
 
+class WithdrawSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=18, decimal_places=4, min_value=Decimal('0.0001'))
+    idempotency_key = serializers.UUIDField(required=False, default=None)
+
+    def validate(self, data):
+        user = self.context['request'].user
+
+        if user.account_status != AccountStatus.VERIFICADO:
+            raise serializers.ValidationError(
+                'Tu cuenta debe estar verificada para realizar retiros.'
+            )
+
+        return data
+
+
 class BalanceSerializer(serializers.Serializer):
     balance = serializers.DecimalField(max_digits=18, decimal_places=4)
     currency = serializers.CharField(default='fichas')

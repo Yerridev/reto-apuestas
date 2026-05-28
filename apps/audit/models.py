@@ -1,6 +1,7 @@
 import hashlib
 import json
 
+from django.conf import settings
 from django.db import models, transaction
 
 
@@ -40,3 +41,17 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f'{self.event_type} @ {self.created_at}'
+
+
+class SuspiciousActivity(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rule_triggered = models.CharField(max_length=100)
+    detail = models.JSONField(default=dict)
+    reviewed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.rule_triggered} - {self.user}'

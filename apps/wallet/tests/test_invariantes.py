@@ -7,6 +7,7 @@ from hypothesis import HealthCheck, given, settings as h_settings
 from hypothesis import strategies as st
 
 from apps.wallet.models import Account, AccountType, Direction, LedgerEntry
+from apps.wallet.services import deposit, get_balance, reserve_for_bet, settle_win
 
 User = get_user_model()
 
@@ -193,3 +194,25 @@ def test_invariante_multiples_operaciones_hypothesis(montos, cuentas_hypothesis)
     for monto in montos:
         crear_entradas_balanceadas(wallet, casa, monto)
     assert calcular_suma_global() == Decimal('0')
+
+
+@pytest.mark.django_db
+@given(
+    stake=st.decimals(min_value=Decimal('0.0001'), max_value=Decimal('999.9999'), places=4),
+    odds=st.decimals(min_value=Decimal('1.0001'), max_value=Decimal('20.0000'), places=4),
+)
+@h_settings(
+    max_examples=30,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+def test_payout_exacto_stake_por_odds(stake, odds, cuentas_hypothesis):
+    LedgerEntry.objects.all().delete()
+    wallet, _ = cuentas_hypothesis
+    user = wallet.user
+    deposit(user, stake)
+    reserve_for_bet(user, stake)
+    settle_win(user, stake, odds)
+
+    expected = (stake * odds).quantize(Decimal('0.0001'))
+    assert get_balance(user) == expected

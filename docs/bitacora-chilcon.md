@@ -25,3 +25,21 @@
 2. DRF sobreescribe los validators del modelo si se pasan por `extra_kwargs` con clave `validators`. La forma correcta es usar métodos `validate_<campo>()` en el serializer.
 3. El throttle rate de DRF se aplica también a tests. Si un test falla y reintenta, puede agotar el rate limit y causar falsos 429.
 4. La variable `DJANGO_SETTINGS_MODULE` debe estar seteada antes de importar cualquier módulo de Django; de lo contrario, las importaciones fallan silenciosamente.
+## Sprint 2 (28 Mayo 2026)
+
+### Trabajado
+- Servicio `withdraw()` con partida doble, validacion de saldo, cuenta verificada e idempotencia.
+- Endpoint `POST /api/wallet/withdraw/` y tests de retiro.
+- Validacion de monto maximo por apuesta y mensajes obligatorios de juego responsable.
+- Servicio y endpoint de cashout con `Decimal`, `transaction.atomic()`, `select_for_update()` e idempotencia.
+- Modelo `SuspiciousActivity`, reglas basicas antifraude, endpoint admin y dashboard operador.
+- Frontend MVT con Django Templates y Tailwind CDN: home, login, registro, apuesta, wallet, historial, perfil y dashboard.
+- ADRs de idempotencia, recotizacion de odds y frontend MVT.
+- Documento de compliance simulado para Ley 31557 y DS 005-2023-MINCETUR.
+
+### Bloqueantes
+- Puerto local `5432` ocupado por otro contenedor PostgreSQL; se resolvio publicando la BD del proyecto en `5433`.
+
+### Aprendizajes
+1. `docker compose config` ayuda a comprobar si un override se esta aplicando realmente.
+2. La idempotencia debe revisarse dentro de la transaccion para reducir riesgos de reintentos concurrentes.

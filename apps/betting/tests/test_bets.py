@@ -91,9 +91,62 @@ def test_crear_apuesta_valida_reserva_saldo_y_queda_accepted(client, usuario_ver
 
     assert response.status_code == 201
     assert response.data['status'] == BetStatus.ACCEPTED
+    assert 'responsible_gambling_message' in response.data
+    assert 'platform_notice' in response.data
     assert response.data['odds'] == '2.1000'
     assert Bet.objects.count() == 1
     assert get_balance(usuario_verificado) == Decimal('75.0000')
+
+
+@pytest.mark.django_db
+def test_crear_apuesta_rechaza_max_stake(client, usuario_verificado, selection_local):
+    get_or_create_wallet(usuario_verificado)
+    deposit(usuario_verificado, Decimal('20000.0000'))
+
+    response = autenticar(client, usuario_verificado).post(
+        reverse('bet-create'),
+        {'selection': selection_local.id, 'stake': '10000.0001'},
+        format='json',
+    )
+
+    assert response.status_code == 400
+    assert 'El monto supera el límite máximo por apuesta.' in str(response.data)
+
+
+@pytest.mark.django_db
+def test_crear_apuesta_idempotency_key_invalido(client, usuario_verificado, selection_local):
+    response = autenticar(client, usuario_verificado).post(
+        reverse('bet-create'),
+        {'selection': selection_local.id, 'stake': '25.0000'},
+        format='json',
+        HTTP_IDEMPOTENCY_KEY='no-es-uuid',
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_crear_apuesta_existente_por_idempotencia(client, usuario_verificado, selection_local):
+    get_or_create_wallet(usuario_verificado)
+    deposit(usuario_verificado, Decimal('100.0000'))
+    key = str(uuid.uuid4())
+
+    first = autenticar(client, usuario_verificado).post(
+        reverse('bet-create'),
+        {'selection': selection_local.id, 'stake': '25.0000'},
+        format='json',
+        HTTP_IDEMPOTENCY_KEY=key,
+    )
+    second = autenticar(client, usuario_verificado).post(
+        reverse('bet-create'),
+        {'selection': selection_local.id, 'stake': '25.0000'},
+        format='json',
+        HTTP_IDEMPOTENCY_KEY=key,
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 200
+    assert Bet.objects.count() == 1
 
 
 @pytest.mark.django_db
@@ -195,3 +248,105 @@ def test_settle_event_solo_admin_liquida_bets(client, usuario_verificado, admin_
     assert bet_lost.status == BetStatus.SETTLED_LOST
     assert response.data['settled_won'] == 1
     assert response.data['settled_lost'] == 1
+
+
+@pytest.mark.django_db
+def test_settle_event_no_existente_retorna_404(client, admin_user):
+    response = autenticar(client, admin_user).post(
+        reverse('event-settle', kwargs={'pk': 99999}),
+        {'result': 'gana_local'},
+        format='json',
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_cashout_exitoso_acredita_valor_correcto(client, usuario_verificado, selection_local):
+    get_or_create_wallet(usuario_verificado)
+    deposit(usuario_verificado, Decimal('100.0000'))
+    key = str(uuid.uuid4())
+    create_response = autenticar(client, usuario_verificado).post(
+        reverse('bet-create'),
+        {'selection': selection_local.id, 'stake': '25.0000'},
+        format='json',
+        HTTP_IDEMPOTENCY_KEY=key,
+    )
+    bet_id = create_response.data['id']
+
+    response = autenticar(client, usuario_verificado).post(
+        reverse('bet-cashout', kwargs={'pk': bet_id}),
+        {'odds_actual': '2.5000'},
+        format='json',
+        HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
+    )
+
+    assert response.status_code == 200
+    assert Decimal(response.data['cashout_value']) == Decimal('17.8500')
+    assert response.data['status'] == BetStatus.CANCELLED
+    assert get_balance(usuario_verificado) == Decimal('92.8500')
+
+
+@pytest.mark.django_db
+def test_cashout_apuesta_liquidada_retorna_400(client, usuario_verificado, selection_local):
+    bet = Bet.objects.create(
+        user=usuario_verificado,
+        market=selection_local.market,
+        selection=selection_local,
+        stake=Decimal('10.0000'),
+        odds=selection_local.odds,
+        status=BetStatus.SETTLED_WON,
+    )
+
+    response = autenticar(client, usuario_verificado).post(
+        reverse('bet-cashout', kwargs={'pk': bet.id}),
+        {'odds_actual': '2.5000'},
+        format='json',
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_cashout_apuesta_otro_usuario_retorna_403(client, usuario_verificado, selection_local):
+    other = crear_usuario('otro@fairbet.pe', '876543252')
+    bet = Bet.objects.create(
+        user=other,
+        market=selection_local.market,
+        selection=selection_local,
+        stake=Decimal('10.0000'),
+        odds=selection_local.odds,
+    )
+
+    response = autenticar(client, usuario_verificado).post(
+        reverse('bet-cashout', kwargs={'pk': bet.id}),
+        {'odds_actual': '2.5000'},
+        format='json',
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_cashout_idempotente_solo_acredita_una_vez(client, usuario_verificado, selection_local):
+    get_or_create_wallet(usuario_verificado)
+    deposit(usuario_verificado, Decimal('100.0000'))
+    create_response = autenticar(client, usuario_verificado).post(
+        reverse('bet-create'),
+        {'selection': selection_local.id, 'stake': '25.0000'},
+        format='json',
+        HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
+    )
+    bet_id = create_response.data['id']
+    cashout_key = str(uuid.uuid4())
+
+    for _ in range(2):
+        response = autenticar(client, usuario_verificado).post(
+            reverse('bet-cashout', kwargs={'pk': bet_id}),
+            {'odds_actual': '2.5000'},
+            format='json',
+            HTTP_IDEMPOTENCY_KEY=cashout_key,
+        )
+        assert response.status_code == 200
+
+    assert get_balance(usuario_verificado) == Decimal('92.8500')

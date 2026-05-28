@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
+from apps.users.choices import AccountStatus
 from apps.wallet.models import Account, AccountType, Direction, LedgerEntry
 
 
@@ -128,6 +129,44 @@ def deposit(user, amount, transaction_id=None):
             cuenta_destino=wallet,
             amount=amount,
             description='depósito simulado de fichas',
+            transaction_id=transaction_id,
+        )
+    return tid
+
+
+def withdraw(user, amount, transaction_id=None):
+    """
+    Retira fichas virtuales del wallet del usuario.
+    Flujo: wallet_usuario DEBIT -> casa CREDIT.
+    """
+    if amount <= Decimal('0'):
+        raise ValueError('El monto debe ser mayor a cero.')
+
+    if user.account_status != AccountStatus.VERIFICADO:
+        raise ValueError('Tu cuenta debe estar verificada para realizar retiros.')
+
+    if transaction_id and LedgerEntry.objects.filter(transaction_id=transaction_id).exists():
+        return transaction_id
+
+    with transaction.atomic():
+        if transaction_id and LedgerEntry.objects.select_for_update().filter(transaction_id=transaction_id).exists():
+            return transaction_id
+
+        wallet = _get_account(user, AccountType.WALLET_USUARIO)
+        wallet = _lock_account(wallet)
+        saldo = _calcular_saldo(wallet)
+
+        if saldo < amount:
+            raise SaldoInsuficiente(
+                f'Saldo insuficiente: tiene {saldo}, necesita {amount}.'
+            )
+
+        casa = _get_global_account(AccountType.CASA)
+        tid = _crear_par_balanceado(
+            cuenta_origen=wallet,
+            cuenta_destino=casa,
+            amount=amount,
+            description='retiro virtual de fichas',
             transaction_id=transaction_id,
         )
     return tid

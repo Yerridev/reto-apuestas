@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="max-w-md">
+  <h1 class="mb-4 text-2xl font-semibold">Ingresar</h1>
+  <form method="post" class="space-y-4 rounded border bg-white p-5">
+    {% csrf_token %}
+    <input name="email" type="email" placeholder="Email" class="w-full rounded border px-3 py-2" required>
+    <input name="password" type="password" placeholder="Password" class="w-full rounded border px-3 py-2" required>
+    <button class="w-full rounded bg-emerald-700 px-4 py-2 text-white">Entrar</button>
+    <a href="{% url 'web-register' %}" class="block text-sm text-emerald-700">Crear cuenta</a>
+  </form>
+</section>
+{% endblock %}
