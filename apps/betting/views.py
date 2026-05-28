@@ -8,9 +8,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.betting.choices import BetStatus
-from apps.betting.models import Bet, Event, Market, Selection
-from apps.betting.serializers import BetCreateSerializer, BetSerializer, CashoutSerializer, EventSettleSerializer
-from apps.betting.services import CashoutNoPermitido, cashout
+from apps.betting.models import AccumulatedBet, Bet, Event, Market, Selection
+from apps.betting.serializers import (
+    AccumulatedBetCreateSerializer,
+    AccumulatedBetSerializer,
+    BetCreateSerializer,
+    BetSerializer,
+    CashoutSerializer,
+    EventSettleSerializer,
+)
+from apps.betting.services import CashoutNoPermitido, cashout, place_accumulator, settle_accumulator_legs
 from apps.users.choices import AccountStatus
 from apps.wallet.services import SaldoInsuficiente, reserve_for_bet, settle_loss, settle_win
 
@@ -162,6 +169,8 @@ class EventSettleView(APIView):
         except Event.DoesNotExist:
             return Response({'detail': 'Evento no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
+        settle_accumulator_legs(event, winning_selection_name)
+
         return Response(
             {
                 'event': event.id,
@@ -170,3 +179,75 @@ class EventSettleView(APIView):
                 'settled_lost': settled_lost,
             }
         )
+
+
+class AccumulatedBetCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AccumulatedBetCreateSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        idempotency_key = request.headers.get('Idempotency-Key')
+        try:
+            transaction_id = uuid.UUID(idempotency_key) if idempotency_key else uuid.uuid4()
+        except ValueError:
+            return Response(
+                {'detail': 'Idempotency-Key debe ser un UUID valido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            acc = place_accumulator(
+                request.user,
+                [{'selection': s} for s in serializer.validated_data['selections']],
+                serializer.validated_data['stake'],
+                transaction_id=transaction_id,
+            )
+        except (SaldoInsuficiente, ValueError) as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(AccumulatedBetSerializer(acc).data, status=status.HTTP_201_CREATED)
+
+
+class AccumulatedBetListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        accumulators = AccumulatedBet.objects.filter(user=request.user).prefetch_related(
+            'legs__selection', 'legs__market__event',
+        ).order_by('-created_at')
+        return Response(AccumulatedBetSerializer(accumulators, many=True).data)
+
+
+class EventOddsView(APIView):
+    """
+    GET /api/events/{event_id}/odds/
+    
+    Retorna las cuotas actuales de un evento.
+    Usado para polling como fallback del WebSocket.
+    """
+    permission_classes = []  # Público, sin autenticación
+
+    def get(self, request, event_id):
+        event = get_object_or_404(Event, pk=event_id)
+        
+        markets = event.markets.all().prefetch_related('selections').values_list('id', 'name')
+        selections_data = {}
+        
+        for market_id, market_name in markets:
+            selections = Selection.objects.filter(market_id=market_id).values('id', 'name', 'odds')
+            selections_data[market_id] = {
+                'market_name': market_name,
+                'selections': list(selections),
+            }
+        
+        return Response({
+            'event_id': event.id,
+            'event_name': event.name,
+            'status': event.status,
+            'starts_at': event.starts_at,
+            'markets': selections_data,
+            'timestamp': __import__('django.utils.timezone', fromlist=['now']).now().isoformat(),
+        }, status=status.HTTP_200_OK)
+

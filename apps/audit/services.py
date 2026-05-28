@@ -113,7 +113,7 @@ def dashboard_metrics():
     lost = Bet.objects.filter(status=BetStatus.SETTLED_LOST)
 
     lost_stakes = lost.aggregate(total=Coalesce(Sum('stake'), Decimal('0.0000')))['total']
-    paid_payouts = sum((bet.stake * bet.odds).quantize(Decimal('0.0001')) for bet in won)
+    paid_payouts = sum(((bet.stake * bet.odds).quantize(Decimal('0.0001')) for bet in won), Decimal('0.0000'))
     ggr = (lost_stakes - paid_payouts).quantize(Decimal('0.0001'))
 
     exposure = []
@@ -125,8 +125,9 @@ def dashboard_metrics():
         for market in event.markets.filter(status=Market.Status.ABIERTO):
             for selection in market.selections.all():
                 amount = sum(
-                    (bet.stake * bet.odds).quantize(Decimal('0.0001'))
-                    for bet in Bet.objects.filter(selection=selection, status=BetStatus.ACCEPTED)
+                    ((bet.stake * bet.odds).quantize(Decimal('0.0001'))
+                     for bet in Bet.objects.filter(selection=selection, status=BetStatus.ACCEPTED)),
+                    Decimal('0.0000'),
                 )
                 selections.append({'selection': selection.name, 'exposure': str(amount.quantize(Decimal('0.0001')))})
         if selections:

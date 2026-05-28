@@ -1,6 +1,7 @@
 import uuid
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -10,7 +11,7 @@ from django.utils import timezone
 from apps.audit.services import dashboard_metrics
 from apps.betting.choices import BetStatus
 from apps.betting.models import Bet, Event, Market, Selection
-from apps.users.choices import ExclusionType
+from apps.users.choices import AccountStatus, ExclusionType
 from apps.users.serializers import DepositLimitSerializer, RegisterSerializer, SelfExclusionSerializer
 from apps.wallet.models import AccountType, LedgerEntry
 from apps.wallet.services import SaldoInsuficiente, deposit, get_balance, get_or_create_wallet, reserve_for_bet, withdraw
@@ -63,9 +64,31 @@ def register_view(request):
 def bet_view(request, selection_id):
     selection = get_object_or_404(Selection.objects.select_related('market__event'), pk=selection_id)
     balance = get_balance(request.user)
+
     if request.method == 'POST':
+        if request.user.account_status != AccountStatus.VERIFICADO:
+            messages.error(request, 'Tu cuenta debe estar verificada para apostar.')
+            return redirect('web-home')
+
+        market = selection.market
+        event = market.event
+
+        if event.status != Event.Status.PROGRAMADO:
+            messages.error(request, 'El evento no esta programado para recibir apuestas.')
+            return redirect('web-home')
+        if event.starts_at <= timezone.now():
+            messages.error(request, 'El evento ya inicio.')
+            return redirect('web-home')
+        if market.status != Market.Status.ABIERTO:
+            messages.error(request, 'El mercado no esta abierto.')
+            return redirect('web-home')
+
         try:
             stake = _decimal_from_post(request.POST.get('stake'))
+
+            if stake > settings.MAX_BET_STAKE:
+                raise ValueError('El monto supera el limite maximo por apuesta.')
+
             reserve_for_bet(request.user, stake, transaction_id=uuid.uuid4())
             Bet.objects.create(
                 user=request.user,
@@ -89,6 +112,19 @@ def wallet_view(request):
         try:
             amount = _decimal_from_post(request.POST.get('amount'))
             if action == 'deposit':
+                if request.user.account_status != AccountStatus.VERIFICADO:
+                    raise ValueError('Tu cuenta debe estar verificada para realizar depositos.')
+
+                limit_map = {
+                    'deposit_limit_daily': 'diario',
+                    'deposit_limit_weekly': 'semanal',
+                    'deposit_limit_monthly': 'mensual',
+                }
+                for field, label in limit_map.items():
+                    limit = getattr(request.user, field)
+                    if limit is not None and amount > limit:
+                        raise ValueError(f'El monto supera tu limite {label} de deposito ({limit}).')
+
                 deposit(request.user, amount, transaction_id=uuid.uuid4())
                 messages.success(request, 'Deposito virtual realizado correctamente.')
             elif action == 'withdraw':

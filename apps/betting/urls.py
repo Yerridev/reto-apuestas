@@ -6,4 +6,7 @@ urlpatterns = [
     path('bets/', views.BetCreateView.as_view(), name='bet-create'),
     path('bets/<int:pk>/cashout/', views.BetCashoutView.as_view(), name='bet-cashout'),
     path('events/<int:pk>/settle/', views.EventSettleView.as_view(), name='event-settle'),
+    path('events/<int:event_id>/odds/', views.EventOddsView.as_view(), name='event-odds'),
+    path('accumulated/', views.AccumulatedBetCreateView.as_view(), name='accumulated-create'),
+    path('accumulated/list/', views.AccumulatedBetListView.as_view(), name='accumulated-list'),
 ]

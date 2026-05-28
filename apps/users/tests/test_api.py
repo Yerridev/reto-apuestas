@@ -22,7 +22,7 @@ class TestRegisterView:
         assert resp.data['first_name'] == 'New'
         assert 'password' not in resp.data
         created = User.objects.get(email='newuser@example.com')
-        assert created.account_status == AccountStatus.VERIFICADO
+        assert created.account_status == AccountStatus.PENDIENTE_VERIFICACION
 
     def test_register_invalid_dni(self, api_client, db):
         payload = {**self.valid_payload, 'dni': '123456780'}

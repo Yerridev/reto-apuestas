@@ -189,3 +189,73 @@ class Bet(models.Model):
 
     def __str__(self):
         return f'{self.user.email} - {self.selection.name} ({self.stake})'
+
+
+class AccumulatedBet(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='accumulated_bets',
+        verbose_name=_('usuario'),
+    )
+    stake = models.DecimalField(
+        max_digits=settings.DECIMAL_MAX_DIGITS,
+        decimal_places=settings.DECIMAL_PLACES,
+        verbose_name=_('monto total apostado'),
+    )
+    combined_odds = models.DecimalField(
+        max_digits=settings.DECIMAL_MAX_DIGITS,
+        decimal_places=settings.DECIMAL_PLACES,
+        verbose_name=_('cuota combinada'),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=BetStatus.choices,
+        default=BetStatus.ACCEPTED,
+        verbose_name=_('estado'),
+    )
+    transaction_id = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('creado en'))
+
+    class Meta:
+        verbose_name = _('apuesta combinada')
+        verbose_name_plural = _('apuestas combinadas')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Combinada {self.user.email} ({self.stake} × {self.combined_odds})'
+
+
+class AccumulatedBetLeg(models.Model):
+    accumulated_bet = models.ForeignKey(
+        AccumulatedBet,
+        on_delete=models.CASCADE,
+        related_name='legs',
+        verbose_name=_('apuesta combinada'),
+    )
+    selection = models.ForeignKey(
+        Selection,
+        on_delete=models.PROTECT,
+        related_name='accumulator_legs',
+        verbose_name=_('seleccion'),
+    )
+    market = models.ForeignKey(
+        Market,
+        on_delete=models.PROTECT,
+        related_name='accumulator_legs',
+        verbose_name=_('mercado'),
+    )
+    odds_at_bet = models.DecimalField(
+        max_digits=settings.DECIMAL_MAX_DIGITS,
+        decimal_places=settings.DECIMAL_PLACES,
+        verbose_name=_('cuota al apostar'),
+    )
+    settled = models.BooleanField(default=False, verbose_name=_('liquidado'))
+    won = models.BooleanField(null=True, verbose_name=_('ganado'))
+
+    class Meta:
+        verbose_name = _('pierna de combinada')
+        verbose_name_plural = _('piernas de combinadas')
+
+    def __str__(self):
+        return f'{self.selection.name} @ {self.odds_at_bet}'

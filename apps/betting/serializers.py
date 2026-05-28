@@ -4,7 +4,65 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.betting.models import Bet, Event, Market, Selection
+from apps.betting.models import AccumulatedBet, AccumulatedBetLeg, Bet, Event, Market, Selection
+from apps.users.choices import AccountStatus
+
+
+class AccumulatedBetLegSerializer(serializers.ModelSerializer):
+    selection_name = serializers.CharField(source='selection.name', read_only=True)
+    event_name = serializers.CharField(source='market.event.name', read_only=True)
+
+    class Meta:
+        model = AccumulatedBetLeg
+        fields = ['id', 'selection', 'selection_name', 'market', 'event_name', 'odds_at_bet', 'settled', 'won']
+
+
+class AccumulatedBetSerializer(serializers.ModelSerializer):
+    legs = AccumulatedBetLegSerializer(many=True, read_only=True)
+    combined_odds = serializers.DecimalField(max_digits=18, decimal_places=4, read_only=True)
+    transaction_id = serializers.UUIDField(read_only=True)
+
+    class Meta:
+        model = AccumulatedBet
+        fields = ['id', 'stake', 'combined_odds', 'status', 'transaction_id', 'created_at', 'legs']
+
+
+class AccumulatedBetCreateSerializer(serializers.Serializer):
+    selections = serializers.ListField(
+        child=serializers.PrimaryKeyRelatedField(queryset=Selection.objects.select_related('market__event')),
+        min_length=2,
+    )
+    stake = serializers.DecimalField(max_digits=18, decimal_places=4, min_value=Decimal('0.0001'))
+
+    def validate_selections(self, selections):
+        seen_markets = {}
+        for sel in selections:
+            market = sel.market
+            if market.id in seen_markets:
+                raise serializers.ValidationError(
+                    f'No puedes combinar dos selecciones del mismo mercado ({market.name}).'
+                )
+            seen_markets[market.id] = sel
+
+            if market.event.status != Event.Status.PROGRAMADO:
+                raise serializers.ValidationError(f'El evento "{market.event.name}" no esta programado.')
+            if market.event.starts_at <= timezone.now():
+                raise serializers.ValidationError(f'El evento "{market.event.name}" ya inicio.')
+            if market.status != Market.Status.ABIERTO:
+                raise serializers.ValidationError(f'El mercado "{market.name}" no esta abierto.')
+
+        return selections
+
+    def validate_stake(self, stake):
+        if stake > settings.MAX_BET_STAKE:
+            raise serializers.ValidationError('El monto supera el limite maximo por apuesta.')
+        return stake
+
+    def validate(self, data):
+        user = self.context['request'].user
+        if user.account_status != AccountStatus.VERIFICADO:
+            raise serializers.ValidationError('Tu cuenta debe estar verificada para apostar.')
+        return data
 
 
 class BetCreateSerializer(serializers.Serializer):

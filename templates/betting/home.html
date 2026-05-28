@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 class="mb-5 text-2xl font-semibold">Eventos programados</h1>
-<div class="space-y-4">
+<div class="space-y-4" id="events-container">
   {% for event in events %}
-    <article class="rounded border bg-white p-4">
+    <article class="rounded border bg-white p-4" data-event-id="{{ event.id }}">
       <div class="mb-3 flex items-center justify-between">
         <div>
           <h2 class="font-semibold">{{ event.name }}</h2>
-          <p class="text-sm text-slate-600">{{ event.sport }} · {{ event.starts_at }}</p>
+          <p class="text-sm text-slate-600">{{ event.sport }} · <span class="event-start-time">{{ event.starts_at }}</span></p>
         </div>
       </div>
       {% for market in event.markets.all %}
         {% if market.market_type == "1X2" %}
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2" data-market-id="{{ market.id }}">
             {% for selection in market.selections.all %}
-              <a href="{% url 'web-bet' selection.id %}" class="rounded border px-3 py-2 text-sm hover:border-emerald-700">
-                {{ selection.name }} @ {{ selection.odds }}
+              <a href="{% url 'web-bet' selection.id %}" class="rounded border px-3 py-2 text-sm hover:border-emerald-700 selection-odds" data-selection-id="{{ selection.id }}" data-selection-name="{{ selection.name }}">
+                {{ selection.name }} @ <span class="odds-value">{{ selection.odds }}</span>
               </a>
             {% endfor %}
           </div>
@@ -26,4 +26,103 @@
     <p>No hay eventos programados.</p>
   {% endfor %}
 </div>
+
+<script>
+(function() {
+  'use strict';
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const eventIds = document.querySelectorAll('[data-event-id]');
+  const pollingInterval = 5000; // 5 segundos
+  let wsConnections = {};
+
+  function updateOdds(eventId, data) {
+    const eventEl = document.querySelector(`[data-event-id="${eventId}"]`);
+    if (!eventEl) return;
+
+    // Actualizar cuotas en cada selección
+    data.markets && Object.entries(data.markets).forEach(([marketId, marketData]) => {
+      const marketEl = eventEl.querySelector(`[data-market-id="${marketId}"]`);
+      if (!marketEl) return;
+
+      marketData.selections.forEach(selection => {
+        const selEl = marketEl.querySelector(`[data-selection-id="${selection.id}"]`);
+        if (selEl) {
+          const oddsSpan = selEl.querySelector('.odds-value');
+          if (oddsSpan && oddsSpan.textContent !== selection.odds) {
+            // Flash animation
+            oddsSpan.style.backgroundColor = '#fbbf24';
+            oddsSpan.textContent = selection.odds;
+            setTimeout(() => { oddsSpan.style.backgroundColor = 'transparent'; }, 300);
+          }
+        }
+      });
+    });
+  }
+
+  function connectWebSocket(eventId) {
+    const wsUrl = `${protocol}//${window.location.host}/ws/odds/event/${eventId}/`;
+    
+    try {
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log(`[WebSocket] Conectado a evento ${eventId}`);
+        // Enviar ping periódico para mantener vivo
+        setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 30000);
+      };
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'odds_update' || msg.type === 'odds.update') {
+            updateOdds(eventId, msg);
+          } else if (msg.type === 'pong') {
+            console.log(`[WebSocket] Pong recibido evento ${eventId}`);
+          }
+        } catch (err) {
+          console.error('[WebSocket] Error parsing message:', err);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.warn(`[WebSocket] Error en evento ${eventId}, activando polling:`, err);
+        startPolling(eventId);
+      };
+
+      ws.onclose = () => {
+        console.log(`[WebSocket] Desconectado de evento ${eventId}, reintentando...`);
+        setTimeout(() => connectWebSocket(eventId), 5000);
+      };
+
+      wsConnections[eventId] = ws;
+    } catch (err) {
+      console.warn(`[WebSocket] No soportado, usando polling para evento ${eventId}:`, err);
+      startPolling(eventId);
+    }
+  }
+
+  function startPolling(eventId) {
+    setInterval(() => {
+      fetch(`/api/betting/events/${eventId}/odds/`)
+        .then(r => r.json())
+        .then(data => updateOdds(eventId, data))
+        .catch(err => console.error(`[Polling] Error para evento ${eventId}:`, err));
+    }, pollingInterval);
+  }
+
+  // Inicializar WebSocket + polling fallback para cada evento
+  eventIds.forEach(el => {
+    const eventId = el.getAttribute('data-event-id');
+    if (eventId) {
+      connectWebSocket(eventId);
+    }
+  });
+})();
+</script>
 {% endblock %}
+
