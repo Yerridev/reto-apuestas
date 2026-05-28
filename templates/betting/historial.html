@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% csrf_token %}
 <div class="space-y-6">
   <header class="rounded-2xl border border-[var(--slate-200)] bg-white p-6">
     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Historial de apuestas</p>
@@ -190,6 +191,7 @@
       const oddsActual = parseFloat(article.dataset.betOdds);
       const res = await fetch(`/api/bets/${cashoutBetId}/cashout/`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': getCookie('csrftoken'),
@@ -220,6 +222,7 @@
     const countEl = document.getElementById('acc-count');
     try {
       const res = await fetch('/api/accumulated/list/', {
+        credentials: 'include',
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
       });
       if (!res.ok) { container.innerHTML = '<div class="text-center text-sm text-[var(--slate-500)] py-10">Error al cargar combinadas.</div>'; return; }

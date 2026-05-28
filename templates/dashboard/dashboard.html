@@ -2,6 +2,7 @@
 {% block content %}
 <meta http-equiv="refresh" content="30">
 <div class="space-y-6">
+  {% csrf_token %}
   <header class="rounded-2xl border border-[var(--slate-200)] bg-white p-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
@@ -189,6 +190,7 @@
     try {
       const res = await fetch(`/api/events/${settleEventId}/settle/`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': getCookie('csrftoken'),
@@ -201,8 +203,12 @@
         return;
       }
 
-      const data = await res.json();
-      document.getElementById('settle-error').textContent = data.detail || 'Error al liquidar.';
+      let detail = 'Error al liquidar.';
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch {}
+      document.getElementById('settle-error').textContent = `${detail} (HTTP ${res.status})`;
       document.getElementById('settle-error').classList.remove('hidden');
     } catch (err) {
       document.getElementById('settle-error').textContent = 'Error de conexion.';
@@ -227,6 +233,7 @@
       try {
         const res = await fetch(`/api/events/${eventId}/suspend-market/`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken'),
@@ -239,8 +246,9 @@
           return;
         }
 
-        const data = await res.json();
-        alert(data.detail || 'Error al suspender.');
+        let detail = 'Error al suspender.';
+        try { const data = await res.json(); detail = data.detail || detail; } catch {}
+        alert(`${detail} (HTTP ${res.status})`);
       } catch (err) {
         alert('Error de conexion.');
       }
