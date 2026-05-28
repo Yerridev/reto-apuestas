@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.users.choices import ExclusionType
+from apps.users.choices import AccountStatus, ExclusionType
 from apps.users.models import DepositLimitChange, SelfExclusion, User
 from apps.users.validators import validate_dni, validate_mayoria_edad
 
@@ -26,6 +26,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop('password')
         user = User(**validated_data)
+        user.account_status = AccountStatus.VERIFICADO
         user.set_password(password)
         user.save()
         return user
