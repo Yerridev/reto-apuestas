@@ -8,10 +8,10 @@ from apps.users.validators import validate_dni, validate_mayoria_edad
 
 class TestValidateDNI:
     def test_valid_dni(self):
-        assert validate_dni('123456785') is None
+        assert validate_dni('123456781') is None
 
     def test_dni_with_dv_zero(self):
-        assert validate_dni('000000000') is None
+        assert validate_dni('000000006') is None
 
     def test_short_dni(self):
         with pytest.raises(ValidationError, match='9 caracteres'):
@@ -29,13 +29,20 @@ class TestValidateDNI:
         with pytest.raises(ValidationError, match='Dígito verificador'):
             validate_dni('123456780')
 
-    def test_dni_with_letter_as_dv(self):
+    def test_dni_with_letter_as_dv_correct(self):
+        assert validate_dni('12345678E') is None
+
+    def test_dni_with_letter_as_dv_wrong(self):
         with pytest.raises(ValidationError, match='Dígito verificador'):
             validate_dni('12345678X')
 
+    def test_dni_real_user(self):
+        assert validate_dni('746960471') is None
+
     @pytest.mark.parametrize('dni,expected', [
-        ('123456785', True),
-        ('876543257', True),
+        ('123456781', True),
+        ('876543252', True),
+        ('102687740', True),
     ])
     def test_multiple_valid_dnis(self, dni, expected):
         if expected:

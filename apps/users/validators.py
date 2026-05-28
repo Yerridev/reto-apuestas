@@ -19,15 +19,15 @@ def validate_dni(value):
     suma = sum(int(value[i]) * pesos[i] for i in range(8))
     residuo = suma % 11
     resultado = 11 - residuo
-
     if resultado == 11:
-        digito = '0'
-    elif resultado == 10:
-        digito = '1'
-    else:
-        digito = str(resultado)
+        resultado = 0
 
-    if value[8] != digito:
+    digito_ingresado = value[8].upper()
+    tabla_numerica = '67890112345'
+    tabla_alfabetica = 'KABCDEFGHIJ'
+    tabla = tabla_alfabetica if digito_ingresado.isalpha() else tabla_numerica
+
+    if digito_ingresado != tabla[resultado]:
         raise ValidationError(
             _('Dígito verificador inválido para el DNI ingresado.'),
         )
