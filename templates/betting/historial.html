@@ -1,187 +1,88 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-  .bet-card {
-    transition: all 0.3s ease;
-    border-left: 4px solid;
-  }
-
-  .bet-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-  }
-
-  .bet-card.won {
-    border-left-color: #10b981;
-    background: #f0fdf4;
-  }
-
-  .bet-card.lost {
-    border-left-color: #ef4444;
-    background: #fef2f2;
-  }
-
-  .bet-card.pending {
-    border-left-color: #f59e0b;
-    background: #fffbeb;
-  }
-
-  .status-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .status-won {
-    background: #d1fae5;
-    color: #065f46;
-  }
-
-  .status-lost {
-    background: #fee2e2;
-    color: #7f1d1d;
-  }
-
-  .status-pending {
-    background: #fef3c7;
-    color: #92400e;
-  }
-
-  .odds-pill {
-    display: inline-block;
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 14px;
-  }
-
-  .metric-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .metric-value {
-    font-size: 18px;
-    font-weight: bold;
-    color: #1f2937;
-    margin-top: 2px;
-  }
-</style>
-
 <div class="space-y-6">
-  <!-- Header -->
-  <div>
-    <h1 class="text-3xl font-bold text-slate-900">📊 Historial de apuestas</h1>
-    <p class="mt-2 text-slate-600">Todas tus apuestas y resultados</p>
-  </div>
+  <header class="rounded-2xl border border-[var(--slate-200)] bg-white p-6">
+    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Historial de apuestas</p>
+    <h1 class="mt-2 text-3xl font-extrabold text-[var(--slate-900)]">Resumen financiero</h1>
+    <p class="mt-2 text-sm text-[var(--slate-500)]">Seguimiento completo de tus tickets y resultados.</p>
+  </header>
 
-  <!-- Stats Summary -->
-  {% if bets %}
-    <div class="grid gap-4 sm:grid-cols-4">
-      <div class="rounded-lg bg-white p-4 shadow-sm">
-        <p class="metric-label">Total apuestas</p>
-        <p class="metric-value">{{ bets|length }}</p>
-      </div>
-      <div class="rounded-lg bg-white p-4 shadow-sm">
-        <p class="metric-label">Ganadas</p>
-        <p class="metric-value text-emerald-600">
-          {% if won_count %}{{ won_count }}{% else %}0{% endif %}
-        </p>
-      </div>
-      <div class="rounded-lg bg-white p-4 shadow-sm">
-        <p class="metric-label">Perdidas</p>
-        <p class="metric-value text-red-600">
-          {% if lost_count %}{{ lost_count }}{% else %}0{% endif %}
-        </p>
-      </div>
-      <div class="rounded-lg bg-white p-4 shadow-sm">
-        <p class="metric-label">Pendientes</p>
-        <p class="metric-value text-amber-600">
-          {% if pending_count %}{{ pending_count }}{% else %}0{% endif %}
-        </p>
-      </div>
+  <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-2xl border border-[var(--slate-200)] bg-white p-5">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Total apuestas</p>
+      <p class="mt-2 text-2xl font-extrabold text-[var(--slate-900)]">{{ bets|length }}</p>
     </div>
-  {% endif %}
+    <div class="rounded-2xl border border-[var(--slate-200)] bg-white p-5">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Ganadas</p>
+      <p class="mt-2 text-2xl font-extrabold text-emerald-600">{% if won_count %}{{ won_count }}{% else %}0{% endif %}</p>
+    </div>
+    <div class="rounded-2xl border border-[var(--slate-200)] bg-white p-5">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Perdidas</p>
+      <p class="mt-2 text-2xl font-extrabold text-rose-600">{% if lost_count %}{{ lost_count }}{% else %}0{% endif %}</p>
+    </div>
+    <div class="rounded-2xl border border-[var(--slate-200)] bg-white p-5">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Pendientes</p>
+      <p class="mt-2 text-2xl font-extrabold text-amber-600">{% if pending_count %}{{ pending_count }}{% else %}0{% endif %}</p>
+    </div>
+  </section>
 
-  <!-- Bets List -->
-  <div class="space-y-3">
+  <section class="space-y-4">
     {% for bet in bets %}
-      <div class="bet-card rounded-lg border p-5 {% if bet.status == 'settled_won' %}won{% elif bet.status == 'settled_lost' %}lost{% elif bet.status == 'accepted' %}pending{% endif %}">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <!-- Left: Event & Selection -->
-          <div class="flex-1">
-            <div class="mb-2 flex items-start gap-2">
-              <h3 class="text-lg font-bold text-slate-900">{{ bet.market.event.name }}</h3>
-              <span class="status-badge {% if bet.status == 'settled_won' %}status-won{% elif bet.status == 'settled_lost' %}status-lost{% else %}status-pending{% endif %}">
-                {% if bet.status == 'settled_won' %}✓ Ganada{% elif bet.status == 'settled_lost' %}✗ Perdida{% elif bet.status == 'accepted' %}⏳ Pendiente{% else %}{{ bet.status }}{% endif %}
-              </span>
+      <article class="rounded-2xl border border-[var(--slate-200)] bg-white p-5 shadow-sm">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-lg font-bold text-[var(--slate-900)]">{{ bet.market.event.name }}</h3>
+              {% if bet.status == 'settled_won' %}
+                <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Ganada</span>
+              {% elif bet.status == 'settled_lost' %}
+                <span class="rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">Perdida</span>
+              {% elif bet.status == 'accepted' %}
+                <span class="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Pendiente</span>
+              {% else %}
+                <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{{ bet.status }}</span>
+              {% endif %}
             </div>
-            <p class="text-sm text-slate-600">{{ bet.market.name }} • <strong>{{ bet.selection.name }}</strong></p>
-            <p class="mt-2 text-xs text-slate-500">{{ bet.created_at|date:"d/m/Y H:i" }}</p>
+            <p class="mt-1 text-sm text-[var(--slate-500)]">{{ bet.market.name }} • <strong>{{ bet.selection.name }}</strong></p>
+            <p class="mt-2 text-xs text-[var(--slate-500)]">{{ bet.created_at|date:"d/m/Y H:i" }}</p>
           </div>
-
-          <!-- Right: Odds, Stake, Result -->
-          <div class="flex gap-4 sm:text-right">
+          <div class="flex flex-wrap items-center gap-6 text-sm">
             <div>
-              <p class="metric-label">Cuota</p>
-              <span class="odds-pill">{{ bet.odds }}</span>
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Cuota</p>
+              <p class="mt-1 text-base font-bold text-[var(--slate-900)]">{{ bet.odds }}</p>
             </div>
             <div>
-              <p class="metric-label">Apuesta</p>
-              <p class="metric-value text-slate-900">{{ bet.stake }}</p>
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Apuesta</p>
+              <p class="mt-1 text-base font-bold text-[var(--slate-900)]">{{ bet.stake }}</p>
             </div>
             {% if bet.status == 'settled_won' %}
               <div>
-                <p class="metric-label">Ganancia</p>
-                <p class="metric-value text-emerald-600" style="font-size: 20px;">+{{ bet.stake|add:0|mul:bet.odds|add:-bet.stake }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Ganancia</p>
+                <p class="mt-1 text-base font-bold text-emerald-600">+{{ bet.payout }}</p>
               </div>
             {% elif bet.status == 'settled_lost' %}
               <div>
-                <p class="metric-label">Pérdida</p>
-                <p class="metric-value text-red-600" style="font-size: 20px;">-{{ bet.stake }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Perdida</p>
+                <p class="mt-1 text-base font-bold text-rose-600">-{{ bet.stake }}</p>
+              </div>
+            {% elif bet.status == 'accepted' %}
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Estado</p>
+                <p class="mt-1 text-base font-bold text-amber-600">En juego</p>
               </div>
             {% endif %}
           </div>
         </div>
-      </div>
+      </article>
     {% empty %}
-      <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
-        <p class="text-lg font-semibold text-slate-600">📭 Sin apuestas todavía</p>
-        <p class="mt-2 text-slate-500">Cuando realices apuestas, aparecerán aquí</p>
-        <a href="{% url 'web-home' %}" class="mt-4 inline-block rounded-lg bg-emerald-600 px-6 py-2 text-white font-semibold hover:bg-emerald-700">
+      <div class="rounded-2xl border border-dashed border-[var(--slate-200)] bg-white p-10 text-center text-[var(--slate-500)]">
+        <p class="text-lg font-semibold">Sin apuestas todavia</p>
+        <p class="mt-2 text-sm">Cuando realices apuestas, apareceran aqui.</p>
+        <a href="{% url 'web-home' %}" class="mt-4 inline-flex items-center rounded-full bg-[var(--brand-600)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-700)]">
           Ir a eventos
         </a>
       </div>
     {% endfor %}
-  </div>
+  </section>
 </div>
-
-<script>
-// Animated stat counters (optional enhancement)
-document.querySelectorAll('.metric-value').forEach(el => {
-  if (el.textContent.match(/^\d+$/)) {
-    const finalValue = parseInt(el.textContent);
-    let current = 0;
-    const increment = Math.ceil(finalValue / 20);
-    
-    const counter = setInterval(() => {
-      current += increment;
-      if (current >= finalValue) {
-        el.textContent = finalValue;
-        clearInterval(counter);
-      } else {
-        el.textContent = current;
-      }
-    }, 30);
-  }
-});
-</script>
 {% endblock %}
-

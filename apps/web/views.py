@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -85,14 +86,33 @@ def bet_view(request, selection_id):
         if event.status not in [Event.Status.PROGRAMADO, Event.Status.EN_VIVO]:
             messages.error(request, 'El evento no está disponible para apuestas.')
             return redirect('web-home')
-        
+
         if event.status == Event.Status.PROGRAMADO and event.starts_at <= timezone.now():
             messages.error(request, 'El evento ya inició.')
             return redirect('web-home')
-        
+
         if market.status != Market.Status.ABIERTO:
             messages.error(request, 'El mercado no está abierto.')
             return redirect('web-home')
+
+        is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+
+        try:
+            odds_expected = _decimal_from_post(request.POST.get('odds_expected'))
+        except ValueError:
+            odds_expected = None
+
+        if odds_expected is not None and selection.odds != odds_expected:
+            if is_ajax:
+                return JsonResponse({
+                    'odds_expected': str(odds_expected),
+                    'odds_current': str(selection.odds),
+                }, status=409)
+            messages.warning(
+                request,
+                f'Las cuotas cambiaron: {odds_expected} → {selection.odds}. '
+                'Envía de nuevo para confirmar la nueva cuota.'
+            )
 
         try:
             stake = _decimal_from_post(request.POST.get('stake'))
@@ -156,8 +176,32 @@ def wallet_view(request):
 
 @login_required(login_url='web-login')
 def historial_view(request):
-    bets = Bet.objects.filter(user=request.user).select_related('market__event', 'selection').order_by('-created_at')[:20]
-    return render(request, 'betting/historial.html', {'bets': bets, 'BetStatus': BetStatus})
+    qs = Bet.objects.filter(user=request.user).select_related('market__event', 'selection')
+    won_count = qs.filter(status=BetStatus.SETTLED_WON).count()
+    lost_count = qs.filter(status=BetStatus.SETTLED_LOST).count()
+    pending_count = qs.filter(status=BetStatus.ACCEPTED).count()
+    bets = qs.order_by('-created_at')[:20]
+    bet_list = []
+    for b in bets:
+        payout = None
+        if b.status == BetStatus.SETTLED_WON:
+            payout = (b.stake * b.odds) - b.stake
+        bet_list.append({
+            'id': b.id,
+            'market': b.market,
+            'selection': b.selection,
+            'stake': b.stake,
+            'odds': b.odds,
+            'status': b.status,
+            'created_at': b.created_at,
+            'payout': payout,
+        })
+    return render(request, 'betting/historial.html', {
+        'bets': bet_list,
+        'won_count': won_count,
+        'lost_count': lost_count,
+        'pending_count': pending_count,
+    })
 
 
 @login_required(login_url='web-login')

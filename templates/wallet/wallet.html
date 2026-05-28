@@ -1,86 +1,44 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-  .balance-card {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  }
+<div class="space-y-6">
+  <header class="rounded-2xl border border-[var(--slate-200)] bg-white p-6">
+    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Wallet</p>
+    <h1 class="mt-2 text-3xl font-extrabold text-[var(--slate-900)]">Tu saldo y transacciones</h1>
+    <p class="mt-2 text-sm text-[var(--slate-500)]">Depósitos y retiros simulados con partida doble.</p>
+  </header>
 
-  .form-card {
-    transition: all 0.3s ease;
-  }
-
-  .form-card:hover {
-    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-  }
-
-  .input-focus {
-    transition: all 0.3s ease;
-  }
-
-  .input-focus:focus {
-    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
-    border-color: #059669;
-  }
-
-  .transaction-card {
-    border-left: 4px solid;
-    transition: all 0.2s ease;
-  }
-
-  .transaction-card.deposit {
-    border-left-color: #10b981;
-    background: #f0fdf4;
-  }
-
-  .transaction-card.withdraw {
-    border-left-color: #ef4444;
-    background: #fef2f2;
-  }
-
-  .amount-positive {
-    color: #10b981;
-    font-weight: bold;
-  }
-
-  .amount-negative {
-    color: #ef4444;
-    font-weight: bold;
-  }
-
-  .btn-action {
-    transition: all 0.3s ease;
-  }
-
-  .btn-action:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-  }
-</style>
-
-<div class="space-y-8">
-  <!-- Main Balance Card -->
-  <div class="balance-card rounded-lg p-8 text-white shadow-lg">
-    <p class="text-sm font-semibold opacity-90">SALDO ACTUAL</p>
-    <h1 class="mt-2 text-5xl font-bold">{{ balance }}</h1>
-    <p class="mt-2 opacity-75">fichas virtuales disponibles</p>
-  </div>
-
-  <!-- Action Forms -->
-  <div class="grid gap-6 sm:grid-cols-2">
-    <!-- Deposit Form -->
-    <div class="form-card rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <div class="mb-4 flex items-center gap-2">
-        <span class="text-2xl">💰</span>
-        <h2 class="text-xl font-bold text-slate-900">Depositar</h2>
+  <section class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div class="rounded-2xl border border-[var(--slate-200)] bg-white p-6 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Saldo disponible</p>
+      <p class="mt-3 text-4xl font-extrabold text-[var(--slate-900)]">{{ balance }}</p>
+      <p class="mt-2 text-sm text-[var(--slate-500)]">Fichas virtuales listas para apostar</p>
+      <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-[var(--slate-500)]">
+        <span class="rounded-full border border-[var(--slate-200)] px-3 py-1">Partida doble</span>
+        <span class="rounded-full border border-[var(--slate-200)] px-3 py-1">Sin dinero real</span>
+        <span class="rounded-full border border-[var(--slate-200)] px-3 py-1">Auditable</span>
       </div>
-      <form method="post" class="space-y-4">
+    </div>
+
+    <div class="rounded-2xl border border-[var(--slate-200)] bg-[var(--slate-50)] p-6">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">Estado de cuenta</p>
+      <p class="mt-2 text-lg font-bold text-[var(--slate-900)]">Operacion inmediata</p>
+      <p class="mt-2 text-sm text-[var(--slate-500)]">Todos los movimientos quedan registrados y balanceados en el ledger.</p>
+    </div>
+  </section>
+
+  <section class="grid gap-6 lg:grid-cols-2">
+    <div class="rounded-2xl border border-[var(--slate-200)] bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-[var(--slate-900)]">Depositar fichas</h2>
+        <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Disponible</span>
+      </div>
+      <form method="post" class="mt-4 space-y-4">
         {% csrf_token %}
         <input type="hidden" name="action" value="deposit">
-        
         <div>
-          <label for="deposit-amount" class="mb-2 block text-sm font-semibold text-slate-900">Monto a depositar</label>
-          <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">+</span>
+          <label for="deposit-amount" class="text-sm font-semibold text-[var(--slate-900)]">Monto</label>
+          <div class="mt-2 flex items-center rounded-xl border border-[var(--slate-200)] bg-white px-3 py-2">
+            <span class="text-sm font-semibold text-[var(--slate-500)]">+</span>
             <input
               type="number"
               id="deposit-amount"
@@ -88,36 +46,30 @@
               placeholder="100.0000"
               step="0.0001"
               min="0.0001"
-              class="input-focus w-full rounded-lg border-2 border-slate-300 py-3 pl-10 pr-4 font-semibold text-slate-900 placeholder-slate-400"
+              class="ml-2 w-full border-0 bg-transparent text-lg font-semibold text-[var(--slate-900)] focus:outline-none"
               required
             >
           </div>
-          <p class="mt-1 text-xs text-slate-500">Suma fichas a tu cuenta</p>
+          <p class="mt-2 text-xs text-[var(--slate-500)]">Se acredita inmediatamente al wallet.</p>
         </div>
-
-        <button
-          type="submit"
-          class="btn-action w-full rounded-lg bg-emerald-600 py-3 font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
-        >
-          ✓ Confirmar depósito
+        <button type="submit" class="w-full rounded-full bg-[var(--brand-600)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--brand-700)]">
+          Confirmar deposito
         </button>
       </form>
     </div>
 
-    <!-- Withdraw Form -->
-    <div class="form-card rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <div class="mb-4 flex items-center gap-2">
-        <span class="text-2xl">🏦</span>
-        <h2 class="text-xl font-bold text-slate-900">Retirar</h2>
+    <div class="rounded-2xl border border-[var(--slate-200)] bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-[var(--slate-900)]">Retirar fichas</h2>
+        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Simulado</span>
       </div>
-      <form method="post" class="space-y-4">
+      <form method="post" class="mt-4 space-y-4">
         {% csrf_token %}
         <input type="hidden" name="action" value="withdraw">
-        
         <div>
-          <label for="withdraw-amount" class="mb-2 block text-sm font-semibold text-slate-900">Monto a retirar</label>
-          <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">−</span>
+          <label for="withdraw-amount" class="text-sm font-semibold text-[var(--slate-900)]">Monto</label>
+          <div class="mt-2 flex items-center rounded-xl border border-[var(--slate-200)] bg-white px-3 py-2">
+            <span class="text-sm font-semibold text-[var(--slate-500)]">-</span>
             <input
               type="number"
               id="withdraw-amount"
@@ -126,80 +78,83 @@
               step="0.0001"
               min="0.0001"
               max="{{ balance }}"
-              class="input-focus w-full rounded-lg border-2 border-slate-300 py-3 pl-10 pr-4 font-semibold text-slate-900 placeholder-slate-400"
+              class="ml-2 w-full border-0 bg-transparent text-lg font-semibold text-[var(--slate-900)] focus:outline-none"
               required
             >
           </div>
-          <p class="mt-1 text-xs text-slate-500">Máximo: {{ balance }} fichas</p>
+          <p class="mt-2 text-xs text-[var(--slate-500)]">Maximo: {{ balance }} fichas.</p>
         </div>
-
-        <button
-          type="submit"
-          class="btn-action w-full rounded-lg bg-slate-700 py-3 font-bold text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          ✓ Confirmar retiro
+        <button type="submit" class="w-full rounded-full border border-[var(--slate-200)] bg-white px-4 py-3 text-sm font-semibold text-[var(--slate-900)] hover:border-[var(--brand-600)] hover:text-[var(--brand-600)]">
+          Confirmar retiro
         </button>
       </form>
     </div>
-  </div>
+  </section>
 
-  <!-- Recent Transactions -->
-  <div>
-    <h2 class="mb-4 text-2xl font-bold text-slate-900">📋 Últimas transacciones</h2>
-    
-    {% if entries %}
-      <div class="space-y-3">
-        {% for entry in entries %}
-          <div class="transaction-card rounded-lg p-4 {% if entry.direction == 'credit' %}deposit{% else %}withdraw{% endif %}">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-slate-600">
-                  {% if entry.direction == 'credit' %}
-                    💰 Depósito
-                  {% else %}
-                    🏦 Retiro
-                  {% endif %}
-                </p>
-                <p class="mt-1 text-xs text-slate-500">{{ entry.created_at|date:"d/m/Y H:i" }}</p>
-              </div>
-              <p class="{% if entry.direction == 'credit' %}amount-positive{% else %}amount-negative{% endif %} text-xl">
-                {% if entry.direction == 'credit' %}+{% else %}−{% endif %}{{ entry.amount }}
-              </p>
-            </div>
-          </div>
-        {% endfor %}
+  <section class="rounded-2xl border border-[var(--slate-200)] bg-white p-6 shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-lg font-bold text-[var(--slate-900)]">Ledger de transacciones</h2>
+        <p class="mt-1 text-sm text-[var(--slate-500)]">Registro de movimientos contables.</p>
       </div>
-    {% else %}
-      <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-        <p class="text-lg font-semibold text-slate-600">📭 Sin transacciones</p>
-        <p class="mt-2 text-slate-500">Realiza tu primer depósito para comenzar</p>
-      </div>
-    {% endif %}
-  </div>
+      <span class="rounded-full border border-[var(--slate-200)] px-3 py-1 text-xs font-semibold text-[var(--slate-500)]">{{ entries|length }} movimientos</span>
+    </div>
 
-  <!-- Info Footer -->
-  <div class="rounded-lg bg-blue-50 p-4 text-sm text-blue-900">
-    <p class="font-semibold">ℹ️ Información importante</p>
-    <ul class="mt-2 space-y-1 text-xs">
-      <li>• Las fichas son virtuales y educativas</li>
-      <li>• Los depósitos y retiros se procesan instantáneamente</li>
-      <li>• Mantén control de tu saldo</li>
-    </ul>
-  </div>
+    <div class="mt-4 overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-[var(--slate-200)] text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">
+          <tr>
+            <th class="py-3">Tipo</th>
+            <th class="py-3">Monto</th>
+            <th class="py-3">Fecha</th>
+            <th class="py-3">Estado</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[var(--slate-200)]">
+          {% for entry in entries %}
+            <tr>
+              <td class="py-3">
+                {% if entry.direction == 'CREDIT' %}
+                  <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Deposito</span>
+                {% else %}
+                  <span class="rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">Retiro</span>
+                {% endif %}
+              </td>
+              <td class="py-3 font-semibold text-[var(--slate-900)]">
+                {% if entry.direction == 'CREDIT' %}+{% else %}-{% endif %}{{ entry.amount }}
+              </td>
+              <td class="py-3 text-[var(--slate-500)]">{{ entry.created_at|date:"d/m/Y H:i" }}</td>
+              <td class="py-3">
+                <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Completado</span>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="py-6 text-center text-sm text-[var(--slate-500)]">Sin transacciones registradas.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Aviso</p>
+    <p class="mt-2">Los movimientos son simulados con moneda virtual y se registran para fines educativos.</p>
+  </section>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-// Realtime validation for amounts
-document.getElementById('withdraw-amount')?.addEventListener('input', function(e) {
+document.getElementById('withdraw-amount')?.addEventListener('input', (e) => {
   const maxBalance = parseFloat('{{ balance }}');
   const value = parseFloat(e.target.value) || 0;
-  
   if (value > maxBalance) {
-    e.target.classList.add('border-red-500');
-  } else if (value > 0) {
-    e.target.classList.remove('border-red-500');
+    e.target.classList.add('text-rose-600');
+  } else {
+    e.target.classList.remove('text-rose-600');
   }
 });
 </script>
 {% endblock %}
-
