@@ -27,6 +27,13 @@ def _bet_response_data(bet):
     return data
 
 
+def _get_client_ip(request):
+    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
 class BetCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -68,6 +75,7 @@ class BetCreateView(APIView):
                     selection=selection,
                     stake=stake,
                     odds=selection.odds,
+                    ip_address=_get_client_ip(request),
                     transaction_id=transaction_id,
                 )
         except SaldoInsuficiente as exc:

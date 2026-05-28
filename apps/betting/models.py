@@ -136,6 +136,11 @@ class Bet(models.Model):
         default=BetStatus.ACCEPTED,
         verbose_name=_('estado'),
     )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name=_('direccion IP'),
+    )
     transaction_id = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('creado en'))
 
