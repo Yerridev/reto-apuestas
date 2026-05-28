@@ -4,24 +4,25 @@ Simulador educativo de apuestas deportivas con moneda virtual. Cumplimiento norm
 
 ## Stack
 
-| Capa | Tecnología |
+| Capa | Tecnologia |
 |---|---|
 | Backend | Django 5.x + DRF |
 | BD | PostgreSQL 16 |
-| Cache/Cola | Redis + Celery *(próximamente)* |
-| Tiempo real | Django Channels *(próximamente)* |
+| Cache/Cola | Redis + Celery |
+| Tiempo real | Django Channels |
 | Contenedores | Docker + docker-compose |
 
 ## Requisitos
 
 - Docker + Docker Compose
 
-## Inicio rápido
+## Inicio rapido
 
 ```bash
 docker compose up -d
 docker compose exec web python manage.py migrate
 docker compose exec web python manage.py createsuperuser
+docker compose exec web python manage.py seedall
 ```
 
 Servidor en `http://localhost:8000`.
@@ -31,50 +32,71 @@ Servidor en `http://localhost:8000`.
 | App | Responsabilidad |
 |---|---|
 | `apps.wallet` | Contabilidad de partida doble, ledger inmutable |
-| `apps.betting` | Ciclo de vida de apuestas, cuotas, liquidación |
+| `apps.betting` | Ciclo de vida de apuestas, cuotas, liquidacion |
 | `apps.users` | Registro, KYC simulado (DNI + edad), juego responsable |
-| `apps.audit` | Auditoría encadenada por hash, anti-fraude |
+| `apps.audit` | Auditoria encadenada por hash, anti-fraude |
 
-## Precisión numérica
+## Precision numerica
 
 Todo monto usa `Decimal(max_digits=18, decimal_places=4)`. Prohibido `float` en operaciones financieras. Constantes en `config.settings.py`.
 
-## Documentación
+## Endpoints clave
 
-- `/docs/adr/` — Architecture Decision Records
-- `/docs/sketches/` — Bocetos ER y máquinas de estado
+- `POST /api/auth/register/`
+- `GET /api/auth/me/`
+- `POST /api/auth/limits/`
+- `POST /api/auth/self-exclusion/`
+- `POST /api/auth/verify-account/` (solo admin)
+- `POST /api/wallet/deposit/`
+- `GET /api/wallet/balance/`
+- `POST /api/betting/bets/`
+- `POST /api/betting/events/<event_id>/settle/` (solo admin)
+- `GET /api/audit/verify/` (solo admin)
+
+## Seed de datos
+
+El comando `seedall` crea usuarios, wallets y eventos:
+- 3 usuarios verificados con saldo inicial.
+- 1 usuario autoexcluido para pruebas de bloqueo.
+- 5 eventos con mercado 1X2 y odds realistas.
+
+```bash
+docker compose exec web python manage.py seedall
+```
+
+## Cobertura
+
+```bash
+docker compose exec web pytest --cov=apps --cov-report=term-missing
+```
+
+## Documentacion
+
+- `/docs/adr/` - Architecture Decision Records
+- `/docs/sketches/` - Bocetos ER y maquinas de estado
 
 ## Flujo de trabajo (Git)
 
 ### Ramas
 
-| Rama | Propósito |
+| Rama | Proposito |
 |---|---|
-| `main` | Código entregable. **Solo se mergea via PR con revisión.** |
+| `main` | Codigo entregable. Solo merge via PR con revision. |
 | `feature/wallet` | Contabilidad de partida doble |
-| `feature/betting` | Catálogo, cuotas, apuestas, liquidación |
+| `feature/betting` | Catalogo, cuotas, apuestas, liquidacion |
 | `feature/live` | Cuotas en tiempo real + apuestas in-play |
-| `feature/audit` | Cadena de auditoría inmutable |
-| `feature/anti-fraud` | Detección de actividad sospechosa |
+| `feature/audit` | Cadena de auditoria inmutable |
+| `feature/anti-fraud` | Deteccion de actividad sospechosa |
 | `feature/dashboard` | Dashboard del operador |
+| `feature/seed` | Users fixes + seed + Docker |
 
 ### Reglas
 
-1. **Nunca codees directo en `main`.** Cada funcionalidad nueva va en su rama `feature/*`.
-2. **Antes de mergear a `main`**, abrí un Pull Request en GitHub.
-3. **El PR necesita al menos 1 aprobación** de otro integrante del equipo para mergear.
-4. Commits con **Conventional Commits**: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`.
+1. Nunca codees directo en `main`. Cada funcionalidad nueva va en su rama `feature/*`.
+2. Antes de mergear a `main`, abre un Pull Request en GitHub.
+3. El PR necesita al menos 1 aprobacion de otro integrante del equipo.
+4. Commits con Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`.
 5. Tests pasando (`pytest`) antes de abrir el PR.
-
-### Loop diario
-
-```bash
-git checkout feature/wallet
-# codeás, codeás...
-git add . && git commit -m "feat: descripcion del cambio"
-git push origin feature/wallet
-# En GitHub: abrís PR → pedís review → mergean a main
-```
 
 ## Integrantes
 
@@ -83,3 +105,13 @@ git push origin feature/wallet
 - Puluche Espejo Pietro Ralf
 - Bardales Vasquez Keysi Jeanpierre
 - Hidrogo Mateo Jeslyn Nicole
+
+## Checklist de entrega
+
+- [ ] `docker compose up` levanta sin errores
+- [ ] tests `pytest` en verde
+- [ ] cobertura >= 80% en `apps/wallet` y `apps/betting`
+- [ ] seed funcionando (usuarios + eventos + wallets)
+
+---
+Plataforma educativa con moneda virtual. No constituye una casa de apuestas.

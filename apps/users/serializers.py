@@ -114,3 +114,29 @@ class SelfExclusionSerializer(serializers.ModelSerializer):
         user.account_status = 'autoexcluido'
         user.save(update_fields=['account_status'])
         return exclusion
+
+
+class VerifyAccountSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(min_value=1)
+
+    def validate_user_id(self, value):
+        try:
+            user = User.objects.get(pk=value)
+        except User.DoesNotExist as exc:
+            raise serializers.ValidationError('Usuario no encontrado.') from exc
+
+        if user.account_status == AccountStatus.VERIFICADO:
+            raise serializers.ValidationError('La cuenta ya se encuentra verificada.')
+
+        if user.account_status == AccountStatus.AUTOEXCLUIDO:
+            raise serializers.ValidationError(
+                'No se puede verificar una cuenta autoexcluida.',
+            )
+
+        return value
+
+    def create(self, validated_data):
+        user = User.objects.get(pk=validated_data['user_id'])
+        user.account_status = AccountStatus.VERIFICADO
+        user.save(update_fields=['account_status'])
+        return user

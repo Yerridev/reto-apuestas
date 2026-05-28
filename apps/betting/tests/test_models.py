@@ -18,7 +18,7 @@ def usuario_verificado(db):
     return User.objects.create_user(
         email='bet-models@fairbet.pe',
         password='Test1234!',
-        dni='102687744',
+        dni='123456781',
         first_name='Bet',
         last_name='Models',
         birth_date='1995-01-01',

@@ -20,7 +20,7 @@ def usuario(db):
     return User.objects.create_user(
         email='invariante@fairbet.pe',
         password='Test1234!',
-        dni='102687744',
+        dni='123456781',
         first_name='Test',
         last_name='User',
         birth_date='1995-01-01',
@@ -44,7 +44,7 @@ def cuentas_hypothesis(db):
     user, _ = User.objects.get_or_create(
         email='hypothesis@fairbet.pe',
         defaults={
-            'dni': '102687744',
+            'dni': '123456781',
             'first_name': 'Hyp',
             'last_name': 'Test',
             'birth_date': '1995-01-01',

@@ -35,21 +35,21 @@ def crear_usuario(email, dni, status=AccountStatus.VERIFICADO, is_staff=False):
 
 @pytest.fixture
 def usuario_verificado(db):
-    return crear_usuario('bet-ok@fairbet.pe', '102687744')
+    return crear_usuario('bet-ok@fairbet.pe', '123456781')
 
 
 @pytest.fixture
 def usuario_autoexcluido(db):
     return crear_usuario(
         'bet-autoexcluido@fairbet.pe',
-        '102687752',
+        '746960471',
         status=AccountStatus.AUTOEXCLUIDO,
     )
 
 
 @pytest.fixture
 def admin_user(db):
-    return crear_usuario('admin-betting@fairbet.pe', '102687760', is_staff=True)
+    return crear_usuario('admin-betting@fairbet.pe', '102687740', is_staff=True)
 
 
 @pytest.fixture

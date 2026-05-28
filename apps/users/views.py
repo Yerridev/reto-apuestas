@@ -7,17 +7,18 @@ from apps.users.serializers import (
     RegisterSerializer,
     SelfExclusionSerializer,
     UserDetailSerializer,
+    VerifyAccountSerializer,
 )
 
 
-class RegisterThrottle(AnonRateThrottle):
-    scope = 'auth_register'
+#class RegisterThrottle(AnonRateThrottle):
+#   scope = 'auth_register'
 
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [RegisterThrottle]
+    #throttle_classes = [RegisterThrottle]
 
 
 class MeView(generics.RetrieveAPIView):
@@ -51,6 +52,24 @@ class SelfExclusionView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         exclusion = serializer.save()
         return Response(
-            {'detail': 'Autoexclusión registrada.', 'exclusion_id': exclusion.id},
+            {'detail': 'Autoexclusion registrada.', 'exclusion_id': exclusion.id},
             status=status.HTTP_201_CREATED,
+        )
+
+
+class VerifyAccountView(generics.CreateAPIView):
+    serializer_class = VerifyAccountSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(
+            {
+                'detail': 'Cuenta verificada correctamente.',
+                'user_id': user.id,
+                'account_status': user.account_status,
+            },
+            status=status.HTTP_200_OK,
         )
