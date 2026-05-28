@@ -1,4 +1,5 @@
 import pytest
+from channels.layers import get_channel_layer
 from django.core.cache import cache
 from rest_framework.settings import api_settings
 
@@ -14,3 +15,17 @@ def _disable_throttling(settings):
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _in_memory_channel_layer(settings):
+    """
+    Reemplaza RedisChannelLayer por InMemoryChannelLayer en todos los tests.
+    Evita depóndencia de Redis durante el test suite.
+    """
+    settings.CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }
+    yield

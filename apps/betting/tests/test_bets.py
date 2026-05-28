@@ -196,6 +196,29 @@ def test_crear_apuesta_rechaza_evento_ya_iniciado(client, usuario_verificado, se
 
 
 @pytest.mark.django_db
+def test_crear_apuesta_en_vivo_permite_evento_iniciado(client, usuario_verificado, selection_local):
+    get_or_create_wallet(usuario_verificado)
+    deposit(usuario_verificado, Decimal('100.0000'))
+    
+    # Set event to EN_VIVO and make it have started
+    event = selection_local.market.event
+    event.status = Event.Status.EN_VIVO
+    event.starts_at = timezone.now() - timezone.timedelta(minutes=5)
+    event.save(update_fields=['status', 'starts_at'])
+
+    response = autenticar(client, usuario_verificado).post(
+        reverse('bet-create'),
+        {'selection': selection_local.id, 'stake': '25.0000'},
+        format='json',
+        HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
+    )
+
+    assert response.status_code == 201
+    assert response.data['status'] == BetStatus.ACCEPTED
+    assert Bet.objects.count() == 1
+
+
+@pytest.mark.django_db
 def test_crear_apuesta_rechaza_mercado_cerrado(client, usuario_verificado, selection_local):
     get_or_create_wallet(usuario_verificado)
     deposit(usuario_verificado, Decimal('100.0000'))

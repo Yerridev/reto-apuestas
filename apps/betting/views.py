@@ -8,9 +8,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.betting.choices import BetStatus
-from apps.betting.models import Bet, Event, Market, Selection
-from apps.betting.serializers import BetCreateSerializer, BetSerializer, CashoutSerializer, EventSettleSerializer
-from apps.betting.services import CashoutNoPermitido, cashout
+from apps.betting.models import AccumulatedBet, Bet, Event, Market, Selection
+from apps.betting.serializers import (
+    AccumulatedBetCreateSerializer,
+    AccumulatedBetSerializer,
+    BetCreateSerializer,
+    BetSerializer,
+    CashoutSerializer,
+    EventSettleSerializer,
+)
+from apps.betting.services import CashoutNoPermitido, cashout, place_accumulator, settle_accumulator_legs
+from apps.betting.tasks import reopen_market_task
 from apps.users.choices import AccountStatus
 from apps.wallet.services import SaldoInsuficiente, reserve_for_bet, settle_loss, settle_win
 
@@ -25,6 +33,13 @@ def _bet_response_data(bet):
     data['responsible_gambling_message'] = RESPONSIBLE_GAMBLING_MESSAGE
     data['platform_notice'] = PLATFORM_NOTICE
     return data
+
+
+def _get_client_ip(request):
+    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
 
 
 class BetCreateView(APIView):
@@ -54,12 +69,24 @@ class BetCreateView(APIView):
 
         selection = serializer.validated_data['selection']
         stake = serializer.validated_data['stake']
+        odds_expected = serializer.validated_data.get('odds_expected')
 
         try:
             with transaction.atomic():
                 selection = Selection.objects.select_for_update().select_related('market__event').get(pk=selection.pk)
                 validation = BetCreateSerializer(data={'selection': selection.pk, 'stake': stake})
                 validation.is_valid(raise_exception=True)
+
+                # Re-cotización: si el cliente envió odds_expected y las actuales difieren → 409
+                if odds_expected is not None and selection.odds != odds_expected:
+                    return Response(
+                        {
+                            'detail': 'Las cuotas han cambiado. Por favor, confirme con las nuevas cuotas.',
+                            'odds_expected': str(odds_expected),
+                            'odds_current': str(selection.odds),
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
 
                 reserve_for_bet(request.user, stake, transaction_id=transaction_id)
                 bet = Bet.objects.create(
@@ -68,6 +95,7 @@ class BetCreateView(APIView):
                     selection=selection,
                     stake=stake,
                     odds=selection.odds,
+                    ip_address=_get_client_ip(request),
                     transaction_id=transaction_id,
                 )
         except SaldoInsuficiente as exc:
@@ -154,6 +182,8 @@ class EventSettleView(APIView):
         except Event.DoesNotExist:
             return Response({'detail': 'Evento no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
+        settle_accumulator_legs(event, winning_selection_name)
+
         return Response(
             {
                 'event': event.id,
@@ -162,3 +192,139 @@ class EventSettleView(APIView):
                 'settled_lost': settled_lost,
             }
         )
+
+
+class AccumulatedBetCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AccumulatedBetCreateSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        idempotency_key = request.headers.get('Idempotency-Key')
+        try:
+            transaction_id = uuid.UUID(idempotency_key) if idempotency_key else uuid.uuid4()
+        except ValueError:
+            return Response(
+                {'detail': 'Idempotency-Key debe ser un UUID valido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            acc = place_accumulator(
+                request.user,
+                [{'selection': s} for s in serializer.validated_data['selections']],
+                serializer.validated_data['stake'],
+                transaction_id=transaction_id,
+            )
+        except (SaldoInsuficiente, ValueError) as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(AccumulatedBetSerializer(acc).data, status=status.HTTP_201_CREATED)
+
+
+class AccumulatedBetListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        accumulators = AccumulatedBet.objects.filter(user=request.user).prefetch_related(
+            'legs__selection', 'legs__market__event',
+        ).order_by('-created_at')
+        return Response(AccumulatedBetSerializer(accumulators, many=True).data)
+
+
+class SuspendMarketView(APIView):
+    """
+    POST /api/events/<event_id>/suspend-market/
+    Body: { "market_id": <int>, "duration_seconds": <int> }
+
+    Admin suspende un mercado in-play (gol, expulsión, etc.).
+    Programa automáticamente su reapertura con Celery.
+    """
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, event_id):
+        market_id = request.data.get('market_id')
+        duration = request.data.get('duration_seconds', 30)
+
+        if not market_id:
+            return Response(
+                {'detail': 'market_id es requerido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            duration = int(duration)
+            if duration <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return Response(
+                {'detail': 'duration_seconds debe ser un entero positivo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                market = (
+                    Market.objects
+                    .select_for_update()
+                    .get(pk=market_id, event_id=event_id)
+                )
+                if market.status not in (Market.Status.ABIERTO, Market.Status.SUSPENDIDO):
+                    return Response(
+                        {'detail': f'No se puede suspender un mercado en estado "{market.status}".'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                market.status = Market.Status.SUSPENDIDO
+                market.save(update_fields=['status'])
+        except Market.DoesNotExist:
+            return Response(
+                {'detail': 'Mercado no encontrado para este evento.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        reopen_market_task.apply_async(
+            args=[market_id],
+            countdown=duration,
+        )
+
+        return Response(
+            {
+                'market_id': market_id,
+                'status': Market.Status.SUSPENDIDO,
+                'reopen_in_seconds': duration,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class EventOddsView(APIView):
+    """
+    GET /api/events/{event_id}/odds/
+    
+    Retorna las cuotas actuales de un evento.
+    Usado para polling como fallback del WebSocket.
+    """
+    permission_classes = []  # Público, sin autenticación
+
+    def get(self, request, event_id):
+        event = get_object_or_404(Event, pk=event_id)
+        
+        markets = event.markets.all().prefetch_related('selections').values_list('id', 'name')
+        selections_data = {}
+        
+        for market_id, market_name in markets:
+            selections = Selection.objects.filter(market_id=market_id).values('id', 'name', 'odds')
+            selections_data[market_id] = {
+                'market_name': market_name,
+                'selections': list(selections),
+            }
+        
+        return Response({
+            'event_id': event.id,
+            'event_name': event.name,
+            'status': event.status,
+            'starts_at': event.starts_at,
+            'markets': selections_data,
+            'timestamp': __import__('django.utils.timezone', fromlist=['now']).now().isoformat(),
+        }, status=status.HTTP_200_OK)
+

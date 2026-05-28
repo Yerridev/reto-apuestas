@@ -1,16 +1,18 @@
 import uuid
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.audit.services import dashboard_metrics
 from apps.betting.choices import BetStatus
 from apps.betting.models import Bet, Event, Market, Selection
-from apps.users.choices import ExclusionType
+from apps.users.choices import AccountStatus, ExclusionType
 from apps.users.serializers import DepositLimitSerializer, RegisterSerializer, SelfExclusionSerializer
 from apps.wallet.models import AccountType, LedgerEntry
 from apps.wallet.services import SaldoInsuficiente, deposit, get_balance, get_or_create_wallet, reserve_for_bet, withdraw
@@ -24,12 +26,21 @@ def _decimal_from_post(value):
 
 
 def home(request):
-    events = (
+    live_events = (
+        Event.objects.filter(status=Event.Status.EN_VIVO)
+        .prefetch_related('markets__selections')
+        .order_by('-starts_at')
+    )
+    programmed_events = (
         Event.objects.filter(status=Event.Status.PROGRAMADO)
         .prefetch_related('markets__selections')
         .order_by('starts_at')
     )
-    return render(request, 'betting/home.html', {'events': events})
+    return render(
+        request,
+        'betting/home.html',
+        {'live_events': live_events, 'programmed_events': programmed_events}
+    )
 
 
 def login_view(request):
@@ -63,9 +74,52 @@ def register_view(request):
 def bet_view(request, selection_id):
     selection = get_object_or_404(Selection.objects.select_related('market__event'), pk=selection_id)
     balance = get_balance(request.user)
+
     if request.method == 'POST':
+        if request.user.account_status != AccountStatus.VERIFICADO:
+            messages.error(request, 'Tu cuenta debe estar verificada para apostar.')
+            return redirect('web-home')
+
+        market = selection.market
+        event = market.event
+
+        if event.status not in [Event.Status.PROGRAMADO, Event.Status.EN_VIVO]:
+            messages.error(request, 'El evento no está disponible para apuestas.')
+            return redirect('web-home')
+
+        if event.status == Event.Status.PROGRAMADO and event.starts_at <= timezone.now():
+            messages.error(request, 'El evento ya inició.')
+            return redirect('web-home')
+
+        if market.status != Market.Status.ABIERTO:
+            messages.error(request, 'El mercado no está abierto.')
+            return redirect('web-home')
+
+        is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+
+        try:
+            odds_expected = _decimal_from_post(request.POST.get('odds_expected'))
+        except ValueError:
+            odds_expected = None
+
+        if odds_expected is not None and selection.odds != odds_expected:
+            if is_ajax:
+                return JsonResponse({
+                    'odds_expected': str(odds_expected),
+                    'odds_current': str(selection.odds),
+                }, status=409)
+            messages.warning(
+                request,
+                f'Las cuotas cambiaron: {odds_expected} → {selection.odds}. '
+                'Envía de nuevo para confirmar la nueva cuota.'
+            )
+
         try:
             stake = _decimal_from_post(request.POST.get('stake'))
+
+            if stake > settings.MAX_BET_STAKE:
+                raise ValueError('El monto supera el limite maximo por apuesta.')
+
             reserve_for_bet(request.user, stake, transaction_id=uuid.uuid4())
             Bet.objects.create(
                 user=request.user,
@@ -89,6 +143,19 @@ def wallet_view(request):
         try:
             amount = _decimal_from_post(request.POST.get('amount'))
             if action == 'deposit':
+                if request.user.account_status != AccountStatus.VERIFICADO:
+                    raise ValueError('Tu cuenta debe estar verificada para realizar depositos.')
+
+                limit_map = {
+                    'deposit_limit_daily': 'diario',
+                    'deposit_limit_weekly': 'semanal',
+                    'deposit_limit_monthly': 'mensual',
+                }
+                for field, label in limit_map.items():
+                    limit = getattr(request.user, field)
+                    if limit is not None and amount > limit:
+                        raise ValueError(f'El monto supera tu limite {label} de deposito ({limit}).')
+
                 deposit(request.user, amount, transaction_id=uuid.uuid4())
                 messages.success(request, 'Deposito virtual realizado correctamente.')
             elif action == 'withdraw':
@@ -109,8 +176,32 @@ def wallet_view(request):
 
 @login_required(login_url='web-login')
 def historial_view(request):
-    bets = Bet.objects.filter(user=request.user).select_related('market__event', 'selection').order_by('-created_at')[:20]
-    return render(request, 'betting/historial.html', {'bets': bets, 'BetStatus': BetStatus})
+    qs = Bet.objects.filter(user=request.user).select_related('market__event', 'selection')
+    won_count = qs.filter(status=BetStatus.SETTLED_WON).count()
+    lost_count = qs.filter(status=BetStatus.SETTLED_LOST).count()
+    pending_count = qs.filter(status=BetStatus.ACCEPTED).count()
+    bets = qs.order_by('-created_at')[:20]
+    bet_list = []
+    for b in bets:
+        payout = None
+        if b.status == BetStatus.SETTLED_WON:
+            payout = (b.stake * b.odds) - b.stake
+        bet_list.append({
+            'id': b.id,
+            'market': b.market,
+            'selection': b.selection,
+            'stake': b.stake,
+            'odds': b.odds,
+            'status': b.status,
+            'created_at': b.created_at,
+            'payout': payout,
+        })
+    return render(request, 'betting/historial.html', {
+        'bets': bet_list,
+        'won_count': won_count,
+        'lost_count': lost_count,
+        'pending_count': pending_count,
+    })
 
 
 @login_required(login_url='web-login')
