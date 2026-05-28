@@ -27,7 +27,7 @@ def api_client():
 def user_data():
     return {
         'email': 'test@example.com',
-        'dni': '123456785',
+        'dni': '123456781',
         'first_name': 'Test',
         'last_name': 'User',
         'birth_date': date(1995, 6, 15),

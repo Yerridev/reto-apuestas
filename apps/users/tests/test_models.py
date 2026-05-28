@@ -15,14 +15,14 @@ class TestUserManager:
     def test_create_user(self, db):
         user = User.objects.create_user(
             email='user@test.com',
-            dni='123456785',
+            dni='123456781',
             first_name='John',
             last_name='Doe',
             birth_date=date(1990, 1, 1),
             password='pass123!',
         )
         assert user.email == 'user@test.com'
-        assert user.dni == '123456785'
+        assert user.dni == '123456781'
         assert user.first_name == 'John'
         assert user.account_status == AccountStatus.PENDIENTE_VERIFICACION
         assert not user.is_staff
@@ -33,7 +33,7 @@ class TestUserManager:
         with pytest.raises(ValueError, match='correo electrónico'):
             User.objects.create_user(
                 email='',
-                dni='123456785',
+                dni='123456781',
                 first_name='John',
                 last_name='Doe',
                 birth_date=date(1990, 1, 1),
@@ -66,7 +66,7 @@ class TestUserManager:
         with pytest.raises(ValidationError):
             User.objects.create_user(
                 email='young@test.com',
-                dni='123456785',
+                dni='123456781',
                 first_name='Young',
                 last_name='User',
                 birth_date=date(2010, 1, 1),
@@ -76,7 +76,7 @@ class TestUserManager:
     def test_create_superuser(self, db):
         admin = User.objects.create_superuser(
             email='admin@test.com',
-            dni='876543257',
+            dni='876543252',
             first_name='Admin',
             last_name='Test',
             birth_date=date(1990, 1, 1),
@@ -89,7 +89,7 @@ class TestUserManager:
 
 class TestUserModel:
     def test_str_representation(self, user):
-        assert str(user) == 'Test User (123456785)'
+        assert str(user) == 'Test User (123456781)'
 
     def test_get_full_name(self, user):
         assert user.get_full_name() == 'Test User'
@@ -115,7 +115,7 @@ class TestUserModel:
         with pytest.raises(Exception):
             User.objects.create_user(
                 email='other@example.com',
-                dni='123456785',
+                dni='123456781',
                 first_name='Other',
                 last_name='User',
                 birth_date=date(1990, 1, 1),

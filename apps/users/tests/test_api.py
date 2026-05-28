@@ -6,7 +6,7 @@ class TestRegisterView:
     url = '/api/auth/register/'
     valid_payload = {
         'email': 'newuser@example.com',
-        'dni': '876543257',
+        'dni': '876543252',
         'first_name': 'New',
         'last_name': 'User',
         'birth_date': '1995-06-15',
@@ -36,7 +36,7 @@ class TestRegisterView:
         payload = {
             **self.valid_payload,
             'email': 'test@example.com',
-            'dni': '876543257',
+            'dni': '876543252',
         }
         resp = api_client.post(self.url, payload, format='json')
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
@@ -46,7 +46,7 @@ class TestRegisterView:
         payload = {
             **self.valid_payload,
             'email': 'another@example.com',
-            'dni': '123456785',
+            'dni': '123456781',
         }
         resp = api_client.post(self.url, payload, format='json')
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
