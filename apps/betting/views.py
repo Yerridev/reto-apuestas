@@ -179,10 +179,9 @@ class EventSettleView(APIView):
                 Market.objects.filter(event=event).update(status=Market.Status.LIQUIDADO)
                 event.status = Event.Status.FINALIZADO
                 event.save(update_fields=['status'])
+                settle_accumulator_legs(event, winning_selection_name)
         except Event.DoesNotExist:
             return Response({'detail': 'Evento no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        settle_accumulator_legs(event, winning_selection_name)
 
         return Response(
             {
