@@ -73,12 +73,18 @@ class BetCreateSerializer(serializers.Serializer):
         market = selection.market
         event = market.event
 
-        if event.status != Event.Status.PROGRAMADO:
-            raise serializers.ValidationError('El evento no esta programado para recibir apuestas.')
-        if event.starts_at <= timezone.now():
-            raise serializers.ValidationError('El evento ya inicio.')
+        # Permitir PROGRAMADO o EN_VIVO
+        if event.status not in [Event.Status.PROGRAMADO, Event.Status.EN_VIVO]:
+            raise serializers.ValidationError('El evento no está disponible para apuestas.')
+        
+        # Para PROGRAMADO: no puede haber iniciado
+        if event.status == Event.Status.PROGRAMADO and event.starts_at <= timezone.now():
+            raise serializers.ValidationError('El evento ya inició.')
+        
+        # Para EN_VIVO: se permite aunque haya iniciado (es el punto de las apuestas en vivo)
+        
         if market.status != Market.Status.ABIERTO:
-            raise serializers.ValidationError('El mercado no esta abierto.')
+            raise serializers.ValidationError('El mercado no está abierto.')
 
         return selection
 

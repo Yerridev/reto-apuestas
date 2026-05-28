@@ -5,37 +5,108 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FairBet Lab</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .nav-link {
+      position: relative;
+      transition: color 0.3s ease;
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: #059669;
+      transition: width 0.3s ease;
+    }
+    .nav-link:hover::after {
+      width: 100%;
+    }
+    .balance-badge {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      transition: all 0.3s ease;
+    }
+    .balance-badge:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900">
-  <nav class="border-b bg-white">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-      <a href="{% url 'web-home' %}" class="text-lg font-bold text-emerald-700">FairBet Lab</a>
-      <div class="flex items-center gap-4 text-sm">
-        <a href="{% url 'web-home' %}" class="hover:text-emerald-700">Eventos</a>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900">
+  <!-- Navigation -->
+  <nav class="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+      <!-- Logo -->
+      <a href="{% url 'web-home' %}" class="flex items-center gap-2">
+        <div class="rounded-lg bg-emerald-600 p-2">
+          <svg class="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+          </svg>
+        </div>
+        <span class="hidden text-lg font-bold text-slate-900 sm:inline">FairBet Lab</span>
+      </a>
+
+      <!-- Main Menu -->
+      <div class="hidden items-center gap-8 sm:flex">
+        <a href="{% url 'web-home' %}" class="nav-link text-sm font-medium text-slate-700">Eventos</a>
         {% if user.is_authenticated %}
-          <a href="{% url 'web-wallet' %}" class="hover:text-emerald-700">Wallet</a>
-          <a href="{% url 'web-historial' %}" class="hover:text-emerald-700">Historial</a>
-          <a href="{% url 'web-perfil' %}" class="hover:text-emerald-700">Perfil</a>
-          {% if user.is_staff %}<a href="{% url 'web-dashboard' %}" class="hover:text-emerald-700">Dashboard</a>{% endif %}
-          <span class="rounded bg-emerald-50 px-2 py-1 text-emerald-800">Saldo: {{ navbar_balance|default:"0.0000" }} fichas</span>
-          <a href="{% url 'web-logout' %}" class="hover:text-emerald-700">Salir</a>
+          <a href="{% url 'web-wallet' %}" class="nav-link text-sm font-medium text-slate-700">Cartera</a>
+          <a href="{% url 'web-historial' %}" class="nav-link text-sm font-medium text-slate-700">Historial</a>
+          <a href="{% url 'web-perfil' %}" class="nav-link text-sm font-medium text-slate-700">Perfil</a>
+          {% if user.is_staff %}
+            <a href="{% url 'web-dashboard' %}" class="nav-link text-sm font-medium text-slate-700">Dashboard</a>
+          {% endif %}
         {% else %}
-          <a href="{% url 'web-login' %}" class="hover:text-emerald-700">Login</a>
-          <a href="{% url 'web-register' %}" class="rounded bg-emerald-700 px-3 py-2 text-white">Registro</a>
+          <a href="{% url 'web-login' %}" class="nav-link text-sm font-medium text-slate-700">Login</a>
+        {% endif %}
+      </div>
+
+      <!-- Right Section -->
+      <div class="flex items-center gap-3 sm:gap-4">
+        {% if user.is_authenticated %}
+          <div class="balance-badge hidden rounded-lg px-4 py-2 text-sm font-semibold text-white sm:block">
+            💰 {{ navbar_balance|default:"0.0000" }} fichas
+          </div>
+          <a href="{% url 'web-logout' %}" class="rounded-lg bg-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-300 sm:text-sm">
+            Salir
+          </a>
+        {% else %}
+          <a href="{% url 'web-register' %}" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 sm:text-sm">
+            Registro
+          </a>
         {% endif %}
       </div>
     </div>
   </nav>
-  <main class="mx-auto max-w-6xl px-4 py-6">
+
+  <!-- Main Content -->
+  <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Messages -->
     {% for message in messages %}
-      <div class="mb-4 rounded border bg-white px-4 py-3 text-sm">{{ message }}</div>
+      <div class="mb-6 rounded-lg border-l-4 border-blue-500 bg-blue-50 p-4 text-blue-900">
+        <div class="flex items-center gap-3">
+          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2z" clip-rule="evenodd"/>
+          </svg>
+          <span>{{ message }}</span>
+        </div>
+      </div>
     {% endfor %}
+
+    <!-- Page Content -->
     {% block content %}{% endblock %}
   </main>
-  <footer class="mt-10 border-t bg-white">
-    <div class="mx-auto max-w-6xl px-4 py-5 text-sm text-slate-600">
-      Plataforma educativa con moneda virtual. No constituye una casa de apuestas.
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 bg-white py-8 text-sm text-slate-600">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between">
+        <p>🎓 Plataforma educativa con moneda virtual.</p>
+        <p class="hidden sm:block">No constituye una casa de apuestas.</p>
+      </div>
     </div>
   </footer>
 </body>
 </html>
+

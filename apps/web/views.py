@@ -25,12 +25,21 @@ def _decimal_from_post(value):
 
 
 def home(request):
-    events = (
+    live_events = (
+        Event.objects.filter(status=Event.Status.EN_VIVO)
+        .prefetch_related('markets__selections')
+        .order_by('-starts_at')
+    )
+    programmed_events = (
         Event.objects.filter(status=Event.Status.PROGRAMADO)
         .prefetch_related('markets__selections')
         .order_by('starts_at')
     )
-    return render(request, 'betting/home.html', {'events': events})
+    return render(
+        request,
+        'betting/home.html',
+        {'live_events': live_events, 'programmed_events': programmed_events}
+    )
 
 
 def login_view(request):
@@ -73,14 +82,16 @@ def bet_view(request, selection_id):
         market = selection.market
         event = market.event
 
-        if event.status != Event.Status.PROGRAMADO:
-            messages.error(request, 'El evento no esta programado para recibir apuestas.')
+        if event.status not in [Event.Status.PROGRAMADO, Event.Status.EN_VIVO]:
+            messages.error(request, 'El evento no está disponible para apuestas.')
             return redirect('web-home')
-        if event.starts_at <= timezone.now():
-            messages.error(request, 'El evento ya inicio.')
+        
+        if event.status == Event.Status.PROGRAMADO and event.starts_at <= timezone.now():
+            messages.error(request, 'El evento ya inició.')
             return redirect('web-home')
+        
         if market.status != Market.Status.ABIERTO:
-            messages.error(request, 'El mercado no esta abierto.')
+            messages.error(request, 'El mercado no está abierto.')
             return redirect('web-home')
 
         try:

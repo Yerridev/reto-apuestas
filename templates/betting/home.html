@@ -1,61 +1,198 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="mb-5 text-2xl font-semibold">Eventos programados</h1>
-<div class="space-y-4" id="events-container">
-  {% for event in events %}
-    <article class="rounded border bg-white p-4" data-event-id="{{ event.id }}">
-      <div class="mb-3 flex items-center justify-between">
-        <div>
-          <h2 class="font-semibold">{{ event.name }}</h2>
-          <p class="text-sm text-slate-600">{{ event.sport }} · <span class="event-start-time">{{ event.starts_at }}</span></p>
-        </div>
-      </div>
-      {% for market in event.markets.all %}
-        {% if market.market_type == "1X2" %}
-          <div class="flex flex-wrap gap-2" data-market-id="{{ market.id }}">
-            {% for selection in market.selections.all %}
-              <a href="{% url 'web-bet' selection.id %}" class="rounded border px-3 py-2 text-sm hover:border-emerald-700 selection-odds" data-selection-id="{{ selection.id }}" data-selection-name="{{ selection.name }}">
-                {{ selection.name }} @ <span class="odds-value">{{ selection.odds }}</span>
-              </a>
+<style>
+  .badge-live {
+    display: inline-block;
+    background: #ef4444;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 11px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .event-card {
+    transition: all 0.3s ease;
+  }
+  
+  .event-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+
+  .odds-btn {
+    transition: all 0.2s ease;
+  }
+  
+  .odds-btn:hover {
+    background-color: #059669;
+    color: white;
+  }
+
+  .live-section {
+    border-left: 4px solid #ef4444;
+    background: #fef2f2;
+  }
+
+  .programmed-section {
+    border-left: 4px solid #3b82f6;
+    background: #eff6ff;
+  }
+</style>
+
+<div class="space-y-8">
+  <!-- EN VIVO SECTION -->
+  <div>
+    <div class="mb-4 flex items-center gap-2">
+      <h2 class="text-3xl font-bold text-slate-900">En Vivo 🔴</h2>
+      <span class="badge-live">TRANSMITIENDO</span>
+    </div>
+    
+    {% if live_events %}
+      <div class="space-y-4">
+        {% for event in live_events %}
+          <article class="event-card rounded-lg border-l-4 border-red-500 bg-white p-6 shadow-sm" data-event-id="{{ event.id }}">
+            <div class="mb-4 flex items-start justify-between">
+              <div>
+                <div class="mb-2 flex items-center gap-2">
+                  <h3 class="text-xl font-bold">{{ event.name }}</h3>
+                  <span class="badge-live">EN VIVO</span>
+                </div>
+                <p class="text-sm text-slate-600">{{ event.sport | upper }} • Comenzó hace <span class="event-time" data-started="{{ event.starts_at }}"></span></p>
+              </div>
+            </div>
+            
+            {% for market in event.markets.all %}
+              {% if market.status == "abierto" %}
+                <div class="mt-4">
+                  <h4 class="mb-3 font-semibold text-slate-700">{{ market.name }}</h4>
+                  <div class="flex flex-wrap gap-3">
+                    {% for selection in market.selections.all %}
+                      <a href="{% url 'web-bet' selection.id %}" class="odds-btn inline-flex items-center gap-2 rounded-lg border-2 border-emerald-600 px-4 py-3 font-semibold text-emerald-600 hover:bg-emerald-600 hover:text-white">
+                        <span>{{ selection.name }}</span>
+                        <span class="inline-block rounded bg-emerald-100 px-2 py-1 text-sm font-bold text-emerald-700 group-hover:bg-emerald-500 group-hover:text-white">
+                          <span class="odds-value">{{ selection.odds }}</span>
+                        </span>
+                      </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
             {% endfor %}
-          </div>
-        {% endif %}
-      {% endfor %}
-    </article>
-  {% empty %}
-    <p>No hay eventos programados.</p>
-  {% endfor %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-600">
+        <p>No hay eventos en vivo en este momento.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- PROGRAMADOS SECTION -->
+  <div>
+    <h2 class="mb-4 text-3xl font-bold text-slate-900">Próximamente 📅</h2>
+    
+    {% if programmed_events %}
+      <div class="space-y-4">
+        {% for event in programmed_events %}
+          <article class="event-card rounded-lg border-l-4 border-blue-500 bg-white p-6 shadow-sm" data-event-id="{{ event.id }}">
+            <div class="mb-4 flex items-start justify-between">
+              <div class="flex-1">
+                <h3 class="mb-1 text-lg font-bold">{{ event.name }}</h3>
+                <p class="text-sm text-slate-600">{{ event.sport | upper }} • <span class="event-start" data-time="{{ event.starts_at }}"></span></p>
+              </div>
+            </div>
+            
+            {% for market in event.markets.all %}
+              {% if market.status == "abierto" %}
+                <div class="mt-3">
+                  <div class="flex flex-wrap gap-2">
+                    {% for selection in market.selections.all %}
+                      <a href="{% url 'web-bet' selection.id %}" class="odds-btn rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-600 hover:bg-emerald-600 hover:text-white">
+                        {{ selection.name }} @ <span class="odds-value font-bold">{{ selection.odds }}</span>
+                      </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-600">
+        <p>No hay eventos programados.</p>
+      </div>
+    {% endif %}
+  </div>
 </div>
 
 <script>
-(function() {
-  'use strict';
+function formatTime(date) {
+  const now = new Date();
+  const d = new Date(date);
+  const diff = Math.floor((d - now) / 1000); // segundos
 
+  if (diff < 0) {
+    const ago = Math.floor(-diff / 60);
+    if (ago < 60) return `hace ${ago}m`;
+    const hours = Math.floor(ago / 60);
+    return `hace ${hours}h`;
+  }
+
+  if (diff < 60) return 'en segundos';
+  if (diff < 3600) {
+    const mins = Math.floor(diff / 60);
+    return `en ${mins}m`;
+  }
+  const hours = Math.floor(diff / 3600);
+  if (hours < 24) return `en ${hours}h`;
+  const days = Math.floor(diff / 86400);
+  return `en ${days}d`;
+}
+
+// Update live event times
+document.querySelectorAll('.event-time').forEach(el => {
+  const started = el.dataset.started;
+  el.textContent = formatTime(started);
+  setInterval(() => { el.textContent = formatTime(started); }, 30000);
+});
+
+// Update programmed event times
+document.querySelectorAll('.event-start').forEach(el => {
+  const time = el.dataset.time;
+  el.textContent = formatTime(time);
+  setInterval(() => { el.textContent = formatTime(time); }, 30000);
+});
+
+// WebSocket + Polling for odds updates (same as before)
+(function() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const eventIds = document.querySelectorAll('[data-event-id]');
-  const pollingInterval = 5000; // 5 segundos
-  let wsConnections = {};
+  const pollingInterval = 5000;
 
   function updateOdds(eventId, data) {
     const eventEl = document.querySelector(`[data-event-id="${eventId}"]`);
     if (!eventEl) return;
 
-    // Actualizar cuotas en cada selección
     data.markets && Object.entries(data.markets).forEach(([marketId, marketData]) => {
-      const marketEl = eventEl.querySelector(`[data-market-id="${marketId}"]`);
-      if (!marketEl) return;
-
       marketData.selections.forEach(selection => {
-        const selEl = marketEl.querySelector(`[data-selection-id="${selection.id}"]`);
-        if (selEl) {
+        const selEls = eventEl.querySelectorAll(`[data-selection-id="${selection.id}"]`);
+        selEls.forEach(selEl => {
           const oddsSpan = selEl.querySelector('.odds-value');
           if (oddsSpan && oddsSpan.textContent !== selection.odds) {
-            // Flash animation
             oddsSpan.style.backgroundColor = '#fbbf24';
             oddsSpan.textContent = selection.odds;
             setTimeout(() => { oddsSpan.style.backgroundColor = 'transparent'; }, 300);
           }
-        }
+        });
       });
     });
   }
@@ -65,64 +202,47 @@
     
     try {
       const ws = new WebSocket(wsUrl);
-
       ws.onopen = () => {
-        console.log(`[WebSocket] Conectado a evento ${eventId}`);
-        // Enviar ping periódico para mantener vivo
         setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ping' }));
           }
         }, 30000);
       };
-
       ws.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);
           if (msg.type === 'odds_update' || msg.type === 'odds.update') {
             updateOdds(eventId, msg);
-          } else if (msg.type === 'pong') {
-            console.log(`[WebSocket] Pong recibido evento ${eventId}`);
           }
         } catch (err) {
-          console.error('[WebSocket] Error parsing message:', err);
+          console.error('WebSocket message error:', err);
         }
       };
-
-      ws.onerror = (err) => {
-        console.warn(`[WebSocket] Error en evento ${eventId}, activando polling:`, err);
-        startPolling(eventId);
-      };
-
+      ws.onerror = () => startPolling(eventId);
       ws.onclose = () => {
-        console.log(`[WebSocket] Desconectado de evento ${eventId}, reintentando...`);
         setTimeout(() => connectWebSocket(eventId), 5000);
       };
-
-      wsConnections[eventId] = ws;
     } catch (err) {
-      console.warn(`[WebSocket] No soportado, usando polling para evento ${eventId}:`, err);
       startPolling(eventId);
     }
   }
 
   function startPolling(eventId) {
     setInterval(() => {
-      fetch(`/api/betting/events/${eventId}/odds/`)
+      fetch(`/api/events/${eventId}/odds/`)
         .then(r => r.json())
         .then(data => updateOdds(eventId, data))
-        .catch(err => console.error(`[Polling] Error para evento ${eventId}:`, err));
+        .catch(err => console.error('Polling error:', err));
     }, pollingInterval);
   }
 
-  // Inicializar WebSocket + polling fallback para cada evento
   eventIds.forEach(el => {
     const eventId = el.getAttribute('data-event-id');
-    if (eventId) {
-      connectWebSocket(eventId);
-    }
+    if (eventId) connectWebSocket(eventId);
   });
 })();
 </script>
 {% endblock %}
+
 
