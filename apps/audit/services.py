@@ -49,6 +49,30 @@ def flag_fast_bets(user):
     )
 
 
+def flag_shared_ip_accounts(bet):
+    if not bet.ip_address:
+        return None
+
+    related_bets = Bet.objects.filter(ip_address=bet.ip_address).exclude(user=bet.user)
+    if not related_bets.exists():
+        return None
+
+    related_user_ids = list(related_bets.values_list('user_id', flat=True).distinct())
+    related_user_emails = list(
+        get_user_model().objects.filter(id__in=related_user_ids).values_list('email', flat=True)
+    )
+    return SuspiciousActivity.objects.create(
+        user=bet.user,
+        rule_triggered='multiples_cuentas_misma_ip',
+        detail={
+            'ip_address': bet.ip_address,
+            'bet_id': bet.id,
+            'related_user_ids': related_user_ids,
+            'related_user_emails': related_user_emails,
+        },
+    )
+
+
 def flag_deposit_cashout(entry):
     if entry.account.type != AccountType.WALLET_USUARIO or entry.direction != Direction.CREDIT:
         return None

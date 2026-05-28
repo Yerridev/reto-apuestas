@@ -134,12 +134,14 @@ def test_signal_bet_crea_log_al_crear_y_al_cambiar_estado(regular_user, market_w
         selection=selection,
         stake=Decimal('10.0000'),
         odds=selection.odds,
+        ip_address='10.0.0.10',
         transaction_id=uuid.uuid4(),
     )
 
     created_log = AuditLog.objects.filter(event_type='bet.created').get()
     assert created_log.payload['bet_id'] == bet.id
     assert created_log.payload['status'] == BetStatus.ACCEPTED
+    assert created_log.payload['ip_address'] == '10.0.0.10'
 
     bet._original_status = bet.status
     bet.status = BetStatus.SETTLED_WON
@@ -197,6 +199,7 @@ def test_apuestas_rapidas_crea_suspicious_activity(regular_user, market_with_sel
             selection=selection,
             stake=Decimal('1.0000'),
             odds=selection.odds,
+            ip_address='10.0.0.20',
             transaction_id=uuid.uuid4(),
         )
 
@@ -218,6 +221,7 @@ def test_deposito_cashout_crea_suspicious_activity(regular_user, market_with_sel
         selection=selection,
         stake=Decimal('10.0000'),
         odds=selection.odds,
+        ip_address='10.0.0.30',
         transaction_id=uuid.uuid4(),
     )
 
@@ -227,6 +231,53 @@ def test_deposito_cashout_crea_suspicious_activity(regular_user, market_with_sel
         user=regular_user,
         rule_triggered='deposito_cashout',
     ).exists()
+
+
+@pytest.mark.django_db
+def test_multiples_cuentas_misma_ip_crea_suspicious_activity(market_with_selection):
+    market, selection = market_with_selection
+    user_one = User.objects.create_user(
+        email='shared-ip-1@fairbet.pe',
+        password='Test1234!',
+        dni='123456781',
+        first_name='Shared',
+        last_name='One',
+        birth_date='1995-01-01',
+        account_status=AccountStatus.VERIFICADO,
+    )
+    user_two = User.objects.create_user(
+        email='shared-ip-2@fairbet.pe',
+        password='Test1234!',
+        dni='876543252',
+        first_name='Shared',
+        last_name='Two',
+        birth_date='1995-01-01',
+        account_status=AccountStatus.VERIFICADO,
+    )
+
+    Bet.objects.create(
+        user=user_one,
+        market=market,
+        selection=selection,
+        stake=Decimal('5.0000'),
+        odds=selection.odds,
+        ip_address='203.0.113.10',
+        transaction_id=uuid.uuid4(),
+    )
+    Bet.objects.create(
+        user=user_two,
+        market=market,
+        selection=selection,
+        stake=Decimal('6.0000'),
+        odds=selection.odds,
+        ip_address='203.0.113.10',
+        transaction_id=uuid.uuid4(),
+    )
+
+    suspicious = SuspiciousActivity.objects.get(rule_triggered='multiples_cuentas_misma_ip')
+    assert suspicious.user == user_two
+    assert suspicious.detail['ip_address'] == '203.0.113.10'
+    assert user_one.email in suspicious.detail['related_user_emails']
 
 
 @pytest.mark.django_db

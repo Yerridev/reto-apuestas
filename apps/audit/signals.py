@@ -2,7 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from apps.audit.models import AuditLog
-from apps.audit.services import flag_deposit_cashout, flag_fast_bets
+from apps.audit.services import flag_deposit_cashout, flag_fast_bets, flag_shared_ip_accounts
 from apps.betting.models import Bet
 from apps.wallet.models import LedgerEntry
 
@@ -39,10 +39,12 @@ def audit_bet_status_change(sender, instance, created, **kwargs):
                 'stake': str(instance.stake),
                 'odds': str(instance.odds),
                 'status': instance.status,
+                'ip_address': instance.ip_address,
                 'transaction_id': str(instance.transaction_id),
             },
         )
         flag_fast_bets(instance.user)
+        flag_shared_ip_accounts(instance)
         return
 
     original_status = getattr(instance, '_original_status', instance.status)
