@@ -1,6 +1,8 @@
 from django.urls import reverse
 from rest_framework import status
 
+from apps.users.choices import AccountStatus
+from apps.users.models import User
 
 class TestRegisterView:
     url = '/api/auth/register/'
@@ -19,6 +21,8 @@ class TestRegisterView:
         assert resp.data['email'] == 'newuser@example.com'
         assert resp.data['first_name'] == 'New'
         assert 'password' not in resp.data
+        created = User.objects.get(email='newuser@example.com')
+        assert created.account_status == AccountStatus.VERIFICADO
 
     def test_register_invalid_dni(self, api_client, db):
         payload = {**self.valid_payload, 'dni': '123456780'}
@@ -179,3 +183,61 @@ class TestSelfExclusionView:
             'exclusion_type': '7_dias',
         }, format='json')
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestVerifyAccountView:
+    url = '/api/auth/verify-account/'
+
+    def test_verify_account_ok_admin(self, api_client, db):
+        admin = User.objects.create_superuser(
+            email='adminverify@fairbet.pe',
+            dni='746960471',
+            first_name='Admin',
+            last_name='Verify',
+            birth_date='1990-01-01',
+            password='SecurePass123!',
+        )
+        target = User.objects.create_user(
+            email='pendingverify@fairbet.pe',
+            dni='876543252',
+            first_name='Pending',
+            last_name='User',
+            birth_date='1995-01-01',
+            password='SecurePass123!',
+        )
+        api_client.force_authenticate(user=admin)
+
+        resp = api_client.post(self.url, {'user_id': target.id}, format='json')
+
+        assert resp.status_code == status.HTTP_200_OK
+        target.refresh_from_db()
+        assert target.account_status == AccountStatus.VERIFICADO
+        assert resp.data['account_status'] == AccountStatus.VERIFICADO
+
+    def test_verify_account_requires_admin(self, auth_client, user):
+        resp = auth_client.post(self.url, {'user_id': user.id}, format='json')
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_verify_account_rejects_autoexcluded(self, api_client, db):
+        admin = User.objects.create_superuser(
+            email='adminverify2@fairbet.pe',
+            dni='102687740',
+            first_name='Admin',
+            last_name='Verify',
+            birth_date='1990-01-01',
+            password='SecurePass123!',
+        )
+        target = User.objects.create_user(
+            email='autoexcluded@fairbet.pe',
+            dni='123456781',
+            first_name='Auto',
+            last_name='Excluded',
+            birth_date='1995-01-01',
+            password='SecurePass123!',
+        )
+        target.account_status = AccountStatus.AUTOEXCLUIDO
+        target.save(update_fields=['account_status'])
+        api_client.force_authenticate(user=admin)
+
+        resp = api_client.post(self.url, {'user_id': target.id}, format='json')
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST

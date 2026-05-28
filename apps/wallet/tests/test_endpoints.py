@@ -26,7 +26,7 @@ def usuario_verificado(db):
     user = User.objects.create_user(
         email='endpoints@fairbet.pe',
         password='Test1234!',
-        dni='102687744',
+        dni='123456781',
         first_name='Test',
         last_name='Endpoints',
         birth_date='1995-01-01',
@@ -41,7 +41,7 @@ def usuario_pendiente(db):
     return User.objects.create_user(
         email='pendiente@fairbet.pe',
         password='Test1234!',
-        dni='102687744',
+        dni='123456781',
         first_name='Test',
         last_name='Pendiente',
         birth_date='1995-01-01',

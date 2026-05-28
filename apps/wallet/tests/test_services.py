@@ -28,7 +28,7 @@ def usuario(db):
     return User.objects.create_user(
         email='servicios@fairbet.pe',
         password='Test1234!',
-        dni='102687744',
+        dni='123456781',
         first_name='Test',
         last_name='User',
         birth_date='1995-01-01',
@@ -133,7 +133,7 @@ def test_concurrencia_sin_doble_gasto():
     user = User.objects.create_user(
         email='concurrencia@fairbet.pe',
         password='Test1234!',
-        dni='102687744',
+        dni='123456781',
         first_name='Test',
         last_name='Concurrencia',
         birth_date='1995-01-01',

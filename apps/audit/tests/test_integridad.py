@@ -28,7 +28,7 @@ def admin_user(db):
     return User.objects.create_user(
         email='audit-admin@fairbet.pe',
         password='Test1234!',
-        dni='102687760',
+        dni='102687740',
         first_name='Audit',
         last_name='Admin',
         birth_date='1995-01-01',
@@ -42,7 +42,7 @@ def regular_user(db):
     return User.objects.create_user(
         email='audit-user@fairbet.pe',
         password='Test1234!',
-        dni='102687744',
+        dni='746960471',
         first_name='Audit',
         last_name='User',
         birth_date='1995-01-01',
