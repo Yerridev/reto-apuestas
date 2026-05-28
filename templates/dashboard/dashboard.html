@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<meta http-equiv="refresh" content="30">
+<h1 class="mb-4 text-2xl font-semibold">Dashboard operador</h1>
+<div class="grid gap-4 md:grid-cols-3">
+  <div class="rounded border bg-white p-4"><p class="text-sm">GGR</p><strong>{{ metrics.ggr }}</strong></div>
+  <div class="rounded border bg-white p-4"><p class="text-sm">Total bets</p><strong>{{ metrics.total_bets }}</strong></div>
+  <div class="rounded border bg-white p-4"><p class="text-sm">Usuarios activos</p><strong>{{ metrics.active_users }}</strong></div>
+</div>
+<h2 class="mt-6 mb-3 text-lg font-semibold">Exposure por evento</h2>
+{% for item in metrics.exposure_by_event %}
+  <div class="mb-3 rounded border bg-white p-4">
+    <h3 class="font-semibold">{{ item.event }}</h3>
+    {% for row in item.selections %}
+      <p class="text-sm">{{ row.selection }}: {{ row.exposure }}</p>
+    {% endfor %}
+  </div>
+{% empty %}
+  <p>Sin exposicion activa.</p>
+{% endfor %}
+{% endblock %}

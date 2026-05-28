@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4 text-2xl font-semibold">Wallet virtual</h1>
+<p class="mb-4 rounded bg-white p-4">Saldo actual: <strong>{{ balance }}</strong> fichas</p>
+<div class="grid gap-4 md:grid-cols-2">
+  <form method="post" class="space-y-3 rounded border bg-white p-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="deposit">
+    <input name="amount" placeholder="Monto a depositar" class="w-full rounded border px-3 py-2">
+    <button class="rounded bg-emerald-700 px-4 py-2 text-white">Depositar</button>
+  </form>
+  <form method="post" class="space-y-3 rounded border bg-white p-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="withdraw">
+    <input name="amount" placeholder="Monto a retirar" class="w-full rounded border px-3 py-2">
+    <button class="rounded bg-slate-800 px-4 py-2 text-white">Retirar</button>
+  </form>
+</div>
+<h2 class="mt-6 mb-3 text-lg font-semibold">Ultimas transacciones</h2>
+<table class="w-full bg-white text-sm">
+  <tbody>
+  {% for entry in entries %}
+    <tr class="border-b"><td class="p-2">{{ entry.created_at }}</td><td class="p-2">{{ entry.direction }}</td><td class="p-2">{{ entry.amount }}</td></tr>
+  {% empty %}
+    <tr><td class="p-2">Sin transacciones.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

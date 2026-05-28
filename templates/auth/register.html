@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="max-w-xl">
+  <h1 class="mb-4 text-2xl font-semibold">Registro</h1>
+  {% if errors %}<pre class="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{{ errors }}</pre>{% endif %}
+  <form method="post" class="grid gap-4 rounded border bg-white p-5 md:grid-cols-2">
+    {% csrf_token %}
+    <input name="email" type="email" placeholder="Email" value="{{ form.email }}" class="rounded border px-3 py-2" required>
+    <input name="dni" placeholder="DNI" value="{{ form.dni }}" class="rounded border px-3 py-2" required>
+    <input name="first_name" placeholder="Nombre" value="{{ form.first_name }}" class="rounded border px-3 py-2" required>
+    <input name="last_name" placeholder="Apellido" value="{{ form.last_name }}" class="rounded border px-3 py-2" required>
+    <input name="birth_date" type="date" value="{{ form.birth_date }}" class="rounded border px-3 py-2" required>
+    <input name="password" type="password" placeholder="Password" class="rounded border px-3 py-2" required>
+    <button class="rounded bg-emerald-700 px-4 py-2 text-white md:col-span-2">Registrarme</button>
+  </form>
+</section>
+{% endblock %}

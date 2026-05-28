@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FairBet Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+  <nav class="border-b bg-white">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+      <a href="{% url 'web-home' %}" class="text-lg font-bold text-emerald-700">FairBet Lab</a>
+      <div class="flex items-center gap-4 text-sm">
+        <a href="{% url 'web-home' %}" class="hover:text-emerald-700">Eventos</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'web-wallet' %}" class="hover:text-emerald-700">Wallet</a>
+          <a href="{% url 'web-historial' %}" class="hover:text-emerald-700">Historial</a>
+          <a href="{% url 'web-perfil' %}" class="hover:text-emerald-700">Perfil</a>
+          {% if user.is_staff %}<a href="{% url 'web-dashboard' %}" class="hover:text-emerald-700">Dashboard</a>{% endif %}
+          <span class="rounded bg-emerald-50 px-2 py-1 text-emerald-800">Saldo: {{ navbar_balance|default:"0.0000" }} fichas</span>
+          <a href="{% url 'web-logout' %}" class="hover:text-emerald-700">Salir</a>
+        {% else %}
+          <a href="{% url 'web-login' %}" class="hover:text-emerald-700">Login</a>
+          <a href="{% url 'web-register' %}" class="rounded bg-emerald-700 px-3 py-2 text-white">Registro</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+  <main class="mx-auto max-w-6xl px-4 py-6">
+    {% for message in messages %}
+      <div class="mb-4 rounded border bg-white px-4 py-3 text-sm">{{ message }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="mt-10 border-t bg-white">
+    <div class="mx-auto max-w-6xl px-4 py-5 text-sm text-slate-600">
+      Plataforma educativa con moneda virtual. No constituye una casa de apuestas.
+    </div>
+  </footer>
+</body>
+</html>

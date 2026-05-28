@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4 text-2xl font-semibold">Perfil</h1>
+<section class="rounded border bg-white p-4">
+  <p>{{ user.get_full_name }} · {{ user.email }}</p>
+  <p>Estado: <strong>{{ user.account_status }}</strong></p>
+  <p>Limites: diario {{ user.deposit_limit_daily|default:"sin limite" }}, semanal {{ user.deposit_limit_weekly|default:"sin limite" }}, mensual {{ user.deposit_limit_monthly|default:"sin limite" }}</p>
+</section>
+<div class="mt-4 grid gap-4 md:grid-cols-2">
+  <form method="post" class="space-y-3 rounded border bg-white p-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="limits">
+    <select name="field_name" class="w-full rounded border px-3 py-2">
+      <option value="deposit_limit_daily">Limite diario</option>
+      <option value="deposit_limit_weekly">Limite semanal</option>
+      <option value="deposit_limit_monthly">Limite mensual</option>
+    </select>
+    <input name="new_value" placeholder="Nuevo limite" class="w-full rounded border px-3 py-2">
+    <button class="rounded bg-emerald-700 px-4 py-2 text-white">Actualizar limite</button>
+  </form>
+  <form method="post" class="space-y-3 rounded border bg-white p-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="self_exclusion">
+    <select name="exclusion_type" class="w-full rounded border px-3 py-2">
+      {% for value,label in exclusion_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+    <label class="flex gap-2 text-sm"><input type="checkbox" name="confirm"> Confirmo mi autoexclusion</label>
+    <button class="rounded bg-red-700 px-4 py-2 text-white">Autoexcluirme</button>
+  </form>
+</div>
+{% endblock %}

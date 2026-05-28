@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4 text-2xl font-semibold">Historial de apuestas</h1>
+<table class="w-full bg-white text-sm">
+  <thead><tr class="border-b text-left"><th class="p-2">Evento</th><th>Seleccion</th><th>Cuota</th><th>Stake</th><th>Estado</th><th>Fecha</th></tr></thead>
+  <tbody>
+  {% for bet in bets %}
+    <tr class="border-b">
+      <td class="p-2">{{ bet.market.event.name }}</td>
+      <td>{{ bet.selection.name }}</td>
+      <td>{{ bet.odds }}</td>
+      <td>{{ bet.stake }}</td>
+      <td><span class="rounded px-2 py-1 {% if bet.status == 'settled_won' %}bg-green-100 text-green-700{% elif bet.status == 'settled_lost' %}bg-red-100 text-red-700{% elif bet.status == 'accepted' %}bg-yellow-100 text-yellow-700{% else %}bg-gray-100 text-gray-700{% endif %}">{{ bet.status }}</span></td>
+      <td>{{ bet.created_at }}</td>
+    </tr>
+  {% empty %}
+    <tr><td class="p-2">Sin apuestas.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -5,8 +5,10 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 
+from apps.users.choices import AccountStatus
 from apps.wallet.models import Account, AccountType
 from apps.wallet.services import (
+    CuentaNoEncontrada,
     SaldoInsuficiente,
     deposit,
     get_balance,
@@ -14,6 +16,7 @@ from apps.wallet.services import (
     reserve_for_bet,
     settle_loss,
     settle_win,
+    withdraw,
 )
 
 User = get_user_model()
@@ -37,6 +40,8 @@ def usuario(db):
 
 @pytest.fixture
 def usuario_con_saldo(usuario):
+    usuario.account_status = AccountStatus.VERIFICADO
+    usuario.save(update_fields=['account_status'])
     get_or_create_wallet(usuario)
     deposit(usuario, Decimal('500.0000'))
     return usuario
@@ -65,12 +70,44 @@ def test_deposit_idempotente(usuario):
 
 
 @pytest.mark.django_db
+def test_deposit_monto_invalido(usuario):
+    with pytest.raises(ValueError):
+        deposit(usuario, Decimal('0.0000'))
+
+
+@pytest.mark.django_db
+def test_get_balance_cuenta_no_encontrada(usuario):
+    with pytest.raises(CuentaNoEncontrada):
+        get_balance(usuario)
+
+
+@pytest.mark.django_db
+def test_withdraw_descuenta_saldo(usuario_con_saldo):
+    withdraw(usuario_con_saldo, Decimal('100.0000'))
+    assert get_balance(usuario_con_saldo) == Decimal('400.0000')
+
+
+@pytest.mark.django_db
+def test_withdraw_saldo_insuficiente(usuario_con_saldo):
+    with pytest.raises(SaldoInsuficiente):
+        withdraw(usuario_con_saldo, Decimal('999.0000'))
+
+
+@pytest.mark.django_db
 def test_reserve_for_bet_descuenta_saldo(usuario_con_saldo):
     """Reservar fondos para una apuesta debe reducir el saldo disponible."""
     saldo_antes = get_balance(usuario_con_saldo)
     reserve_for_bet(usuario_con_saldo, Decimal('100.0000'))
     saldo_despues = get_balance(usuario_con_saldo)
     assert saldo_despues == saldo_antes - Decimal('100.0000')
+
+
+@pytest.mark.django_db
+def test_reserve_for_bet_idempotente(usuario_con_saldo):
+    tid = uuid.uuid4()
+    reserve_for_bet(usuario_con_saldo, Decimal('100.0000'), transaction_id=tid)
+    reserve_for_bet(usuario_con_saldo, Decimal('100.0000'), transaction_id=tid)
+    assert get_balance(usuario_con_saldo) == Decimal('400.0000')
 
 
 @pytest.mark.django_db
@@ -96,6 +133,15 @@ def test_settle_win_acredita_payout_exacto(usuario_con_saldo):
 
 
 @pytest.mark.django_db
+def test_settle_win_idempotente(usuario_con_saldo):
+    tid = uuid.uuid4()
+    reserve_for_bet(usuario_con_saldo, Decimal('100.0000'))
+    settle_win(usuario_con_saldo, Decimal('100.0000'), Decimal('2.0000'), transaction_id=tid)
+    settle_win(usuario_con_saldo, Decimal('100.0000'), Decimal('2.0000'), transaction_id=tid)
+    assert get_balance(usuario_con_saldo) == Decimal('600.0000')
+
+
+@pytest.mark.django_db
 def test_settle_loss_no_devuelve_stake(usuario_con_saldo):
     """Al perder una apuesta el stake no debe volver al wallet del usuario."""
     stake = Decimal('100.0000')
@@ -105,6 +151,15 @@ def test_settle_loss_no_devuelve_stake(usuario_con_saldo):
     saldo_despues = get_balance(usuario_con_saldo)
 
     assert saldo_despues == saldo_antes - stake
+
+
+@pytest.mark.django_db
+def test_settle_loss_idempotente(usuario_con_saldo):
+    tid = uuid.uuid4()
+    reserve_for_bet(usuario_con_saldo, Decimal('100.0000'))
+    settle_loss(usuario_con_saldo, Decimal('100.0000'), transaction_id=tid)
+    settle_loss(usuario_con_saldo, Decimal('100.0000'), transaction_id=tid)
+    assert get_balance(usuario_con_saldo) == Decimal('400.0000')
 
 
 @pytest.mark.django_db

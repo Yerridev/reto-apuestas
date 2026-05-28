@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from config.logging_fmt import JSONFormatter
@@ -15,6 +16,7 @@ ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
 DECIMAL_MAX_DIGITS = 18
 DECIMAL_PLACES = 4
+MAX_BET_STAKE = Decimal('10000.0000')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -28,6 +30,7 @@ INSTALLED_APPS = [
     'apps.betting',
     'apps.users',
     'apps.audit',
+    'apps.web',
 ]
 
 MIDDLEWARE = [
@@ -45,13 +48,14 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.web.context_processors.wallet_balance',
             ],
         },
     },
@@ -113,6 +117,8 @@ REST_FRAMEWORK = {
         'user': '100/minute',
         'auth_register': '3/hour',
     },
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 SIMPLE_JWT = {

@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -8,9 +9,22 @@ from rest_framework.views import APIView
 
 from apps.betting.choices import BetStatus
 from apps.betting.models import Bet, Event, Market, Selection
-from apps.betting.serializers import BetCreateSerializer, BetSerializer, EventSettleSerializer
+from apps.betting.serializers import BetCreateSerializer, BetSerializer, CashoutSerializer, EventSettleSerializer
+from apps.betting.services import CashoutNoPermitido, cashout
 from apps.users.choices import AccountStatus
 from apps.wallet.services import SaldoInsuficiente, reserve_for_bet, settle_loss, settle_win
+
+RESPONSIBLE_GAMBLING_MESSAGE = (
+    'Juega con responsabilidad. Si crees que tienes un problema, usa la opción de autoexclusión.'
+)
+PLATFORM_NOTICE = 'Plataforma educativa con moneda virtual. No constituye una casa de apuestas.'
+
+
+def _bet_response_data(bet):
+    data = BetSerializer(bet).data
+    data['responsible_gambling_message'] = RESPONSIBLE_GAMBLING_MESSAGE
+    data['platform_notice'] = PLATFORM_NOTICE
+    return data
 
 
 class BetCreateView(APIView):
@@ -36,7 +50,7 @@ class BetCreateView(APIView):
             )
         existing_bet = Bet.objects.filter(transaction_id=transaction_id, user=request.user).first()
         if existing_bet:
-            return Response(BetSerializer(existing_bet).data, status=status.HTTP_200_OK)
+            return Response(_bet_response_data(existing_bet), status=status.HTTP_200_OK)
 
         selection = serializer.validated_data['selection']
         stake = serializer.validated_data['stake']
@@ -61,7 +75,45 @@ class BetCreateView(APIView):
         except ValueError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(BetSerializer(bet).data, status=status.HTTP_201_CREATED)
+        return Response(_bet_response_data(bet), status=status.HTTP_201_CREATED)
+
+
+class BetCashoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        serializer = CashoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        bet = get_object_or_404(Bet.objects.select_related('user', 'market'), pk=pk)
+        if bet.user_id != request.user.id:
+            return Response({'detail': 'La apuesta no pertenece al usuario autenticado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        idempotency_key = request.headers.get('Idempotency-Key')
+        try:
+            transaction_id = uuid.UUID(idempotency_key) if idempotency_key else uuid.uuid4()
+        except ValueError:
+            return Response({'detail': 'Idempotency-Key debe ser un UUID valido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            cashout_value, balance = cashout(
+                bet,
+                serializer.validated_data['odds_actual'],
+                transaction_id=transaction_id,
+            )
+        except (CashoutNoPermitido, ValueError) as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        bet.refresh_from_db()
+        return Response(
+            {
+                'bet_id': bet.id,
+                'cashout_value': str(cashout_value),
+                'balance': str(balance),
+                'status': bet.status,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class EventSettleView(APIView):

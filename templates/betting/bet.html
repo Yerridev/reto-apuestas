@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="max-w-xl rounded border bg-white p-5">
+  <h1 class="mb-2 text-2xl font-semibold">{{ selection.market.event.name }}</h1>
+  <p class="text-sm text-slate-600">{{ selection.market.name }} · {{ selection.name }} @ {{ selection.odds }}</p>
+  <p class="mt-3 text-sm">Saldo disponible: <strong>{{ balance }}</strong> fichas</p>
+  <p class="mt-4 rounded bg-amber-50 p-3 text-sm text-amber-800">Juega con responsabilidad. Si crees que tienes un problema, usa la autoexclusión.</p>
+  <form method="post" class="mt-4 space-y-3">
+    {% csrf_token %}
+    <input name="stake" placeholder="Monto" class="w-full rounded border px-3 py-2" required>
+    <button class="rounded bg-emerald-700 px-4 py-2 text-white">Confirmar apuesta</button>
+  </form>
+</section>
+{% endblock %}

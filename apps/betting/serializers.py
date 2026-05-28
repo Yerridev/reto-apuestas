@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -22,6 +23,15 @@ class BetCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError('El mercado no esta abierto.')
 
         return selection
+
+    def validate_stake(self, stake):
+        if stake > settings.MAX_BET_STAKE:
+            raise serializers.ValidationError('El monto supera el límite máximo por apuesta.')
+        return stake
+
+
+class CashoutSerializer(serializers.Serializer):
+    odds_actual = serializers.DecimalField(max_digits=18, decimal_places=4, min_value=Decimal('0.0001'))
 
 
 class BetSerializer(serializers.ModelSerializer):
