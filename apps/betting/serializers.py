@@ -74,6 +74,16 @@ class AccumulatedBetCreateSerializer(serializers.Serializer):
 class BetCreateSerializer(serializers.Serializer):
     selection = serializers.PrimaryKeyRelatedField(queryset=Selection.objects.select_related('market__event'))
     stake = serializers.DecimalField(max_digits=18, decimal_places=4, min_value=Decimal('0.0001'))
+    odds_expected = serializers.DecimalField(
+        max_digits=18, decimal_places=4,
+        min_value=Decimal('0.0001'),
+        required=False,
+        allow_null=True,
+        help_text=(
+            'Cuota que el usuario vio al abrir el ticket. '
+            'Si las odds actuales difieren, se retorna 409 con las nuevas cuotas.'
+        ),
+    )
 
     def validate_selection(self, selection):
         market = selection.market
