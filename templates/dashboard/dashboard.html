@@ -34,6 +34,54 @@
   <section class="rounded-2xl border border-[var(--slate-200)] bg-white p-6 shadow-sm">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
+        <h2 class="text-lg font-bold text-[var(--slate-900)]">Eventos activos</h2>
+        <p class="mt-1 text-sm text-[var(--slate-500)]">Administra eventos, liquida resultados y suspende mercados.</p>
+      </div>
+      <span class="rounded-full border border-[var(--slate-200)] px-3 py-1 text-xs font-semibold text-[var(--slate-500)]">{{ events|length }} activos</span>
+    </div>
+
+    <div class="mt-4 space-y-4">
+      {% for event in events %}
+        <div class="rounded-2xl border border-[var(--slate-200)] bg-[var(--slate-50)] p-5" data-admin-event-id="{{ event.id }}">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 class="text-lg font-bold text-[var(--slate-900)]">{{ event.name }}</h3>
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--slate-500)]">{{ event.sport|upper }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">{{ event.status }}</span>
+              <button type="button" class="settle-btn rounded-full bg-[var(--brand-600)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--brand-700)]" data-event-id="{{ event.id }}">Liquidar evento</button>
+            </div>
+          </div>
+
+          <div class="mt-4 space-y-2">
+            {% for market in event.markets.all %}
+              <div class="flex flex-wrap items-center justify-between rounded-xl bg-white px-4 py-3 text-sm">
+                <div>
+                  <span class="font-semibold text-[var(--slate-900)]">{{ market.name }}</span>
+                  <span class="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-[var(--slate-500)]">{{ market.status }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  {% if market.status == "abierto" or market.status == "suspendido" %}
+                    <input type="number" class="suspend-duration w-16 rounded-lg border border-[var(--slate-200)] px-2 py-1 text-xs" value="30" min="5" max="300" placeholder="seg">
+                    <button type="button" class="suspend-btn rounded-full border border-amber-500 px-3 py-1 text-xs font-semibold text-amber-600 hover:bg-amber-50" data-market-id="{{ market.id }}" data-event-id="{{ event.id }}">Suspender</button>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% empty %}
+        <div class="rounded-xl border border-dashed border-[var(--slate-200)] p-6 text-center text-sm text-[var(--slate-500)]">
+          No hay eventos activos.
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="rounded-2xl border border-[var(--slate-200)] bg-white p-6 shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
         <h2 class="text-lg font-bold text-[var(--slate-900)]">Exposure por evento</h2>
         <p class="mt-1 text-sm text-[var(--slate-500)]">Riesgo asumido por seleccion activa.</p>
       </div>
@@ -61,4 +109,146 @@
     </div>
   </section>
 </div>
+
+<div id="settle-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 p-4">
+  <div class="w-full max-w-sm rounded-2xl border border-[var(--slate-200)] bg-white p-6 shadow-xl">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold text-[var(--slate-900)]">Liquidar evento</h3>
+      <button type="button" id="settle-close" class="rounded-full p-1 text-[var(--slate-500)] hover:bg-[var(--slate-100)]">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="mt-2 text-sm text-[var(--slate-500)]">Seleccioná el resultado final del evento.</p>
+    <div class="mt-4 space-y-2">
+      <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--slate-200)] px-4 py-3 text-sm font-semibold hover:bg-[var(--slate-50)]">
+        <input type="radio" name="settle-result" value="gana_local" class="accent-[var(--brand-600)]">
+        Gana local
+      </label>
+      <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--slate-200)] px-4 py-3 text-sm font-semibold hover:bg-[var(--slate-50)]">
+        <input type="radio" name="settle-result" value="empate" class="accent-[var(--brand-600)]">
+        Empate
+      </label>
+      <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--slate-200)] px-4 py-3 text-sm font-semibold hover:bg-[var(--slate-50)]">
+        <input type="radio" name="settle-result" value="gana_visitante" class="accent-[var(--brand-600)]">
+        Gana visitante
+      </label>
+    </div>
+    <div class="mt-6 flex gap-3">
+      <button type="button" id="settle-cancel" class="flex-1 rounded-full border border-[var(--slate-200)] px-4 py-3 text-sm font-semibold text-[var(--slate-900)] hover:bg-[var(--slate-50)]">Cancelar</button>
+      <button type="button" id="settle-confirm" class="flex-1 rounded-full bg-[var(--brand-600)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--brand-700)]">Confirmar liquidacion</button>
+    </div>
+    <p id="settle-error" class="mt-3 hidden text-center text-xs text-rose-600"></p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  function getCookie(name) {
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : '';
+  }
+
+  // -- Settle Event --
+  const settleModal = document.getElementById('settle-modal');
+  let settleEventId = null;
+
+  document.querySelectorAll('.settle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      settleEventId = btn.dataset.eventId;
+      document.querySelectorAll('[name="settle-result"]').forEach(r => r.checked = false);
+      document.getElementById('settle-error').classList.add('hidden');
+      settleModal.classList.remove('hidden');
+    });
+  });
+
+  function closeSettle() {
+    settleModal.classList.add('hidden');
+    settleEventId = null;
+  }
+
+  document.getElementById('settle-close').addEventListener('click', closeSettle);
+  document.getElementById('settle-cancel').addEventListener('click', closeSettle);
+  settleModal.addEventListener('click', (e) => { if (e.target === settleModal) closeSettle(); });
+
+  document.getElementById('settle-confirm').addEventListener('click', async () => {
+    if (!settleEventId) return;
+    const result = document.querySelector('[name="settle-result"]:checked');
+    if (!result) {
+      document.getElementById('settle-error').textContent = 'Seleccioná un resultado.';
+      document.getElementById('settle-error').classList.remove('hidden');
+      return;
+    }
+
+    const btn = document.getElementById('settle-confirm');
+    btn.disabled = true;
+    btn.textContent = 'Liquidando...';
+    document.getElementById('settle-error').classList.add('hidden');
+
+    try {
+      const res = await fetch(`/api/events/${settleEventId}/settle/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({ result: result.value }),
+      });
+
+      if (res.ok) {
+        window.location.reload();
+        return;
+      }
+
+      const data = await res.json();
+      document.getElementById('settle-error').textContent = data.detail || 'Error al liquidar.';
+      document.getElementById('settle-error').classList.remove('hidden');
+    } catch (err) {
+      document.getElementById('settle-error').textContent = 'Error de conexion.';
+      document.getElementById('settle-error').classList.remove('hidden');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Confirmar liquidacion';
+  });
+
+  // -- Suspend Market --
+  document.querySelectorAll('.suspend-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const eventId = btn.dataset.eventId;
+      const marketId = btn.dataset.marketId;
+      const durationInput = btn.parentElement.querySelector('.suspend-duration');
+      const duration = parseInt(durationInput?.value) || 30;
+
+      btn.disabled = true;
+      btn.textContent = 'Suspendiendo...';
+
+      try {
+        const res = await fetch(`/api/events/${eventId}/suspend-market/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+          },
+          body: JSON.stringify({ market_id: parseInt(marketId), duration_seconds: duration }),
+        });
+
+        if (res.ok) {
+          window.location.reload();
+          return;
+        }
+
+        const data = await res.json();
+        alert(data.detail || 'Error al suspender.');
+      } catch (err) {
+        alert('Error de conexion.');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Suspender';
+    });
+  });
+})();
+</script>
 {% endblock %}

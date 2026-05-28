@@ -208,7 +208,10 @@ def historial_view(request):
 def dashboard_view(request):
     if not request.user.is_staff:
         return redirect('web-login')
-    return render(request, 'dashboard/dashboard.html', {'metrics': dashboard_metrics()})
+    events = Event.objects.filter(
+        status__in=[Event.Status.PROGRAMADO, Event.Status.EN_VIVO]
+    ).prefetch_related('markets__selections')
+    return render(request, 'dashboard/dashboard.html', {'metrics': dashboard_metrics(), 'events': events})
 
 
 @login_required(login_url='web-login')
