@@ -44,12 +44,18 @@ class AccumulatedBetCreateSerializer(serializers.Serializer):
                 )
             seen_markets[market.id] = sel
 
-            if market.event.status != Event.Status.PROGRAMADO:
-                raise serializers.ValidationError(f'El evento "{market.event.name}" no esta programado.')
-            if market.event.starts_at <= timezone.now():
-                raise serializers.ValidationError(f'El evento "{market.event.name}" ya inicio.')
+            # Permitir PROGRAMADO o EN_VIVO
+            if market.event.status not in [Event.Status.PROGRAMADO, Event.Status.EN_VIVO]:
+                raise serializers.ValidationError(f'El evento "{market.event.name}" no está disponible para apuestas.')
+            
+            # Para PROGRAMADO: no puede haber iniciado
+            if market.event.status == Event.Status.PROGRAMADO and market.event.starts_at <= timezone.now():
+                raise serializers.ValidationError(f'El evento "{market.event.name}" ya inició.')
+            
+            # Para EN_VIVO: se permite aunque haya iniciado
+            
             if market.status != Market.Status.ABIERTO:
-                raise serializers.ValidationError(f'El mercado "{market.name}" no esta abierto.')
+                raise serializers.ValidationError(f'El mercado "{market.name}" no está abierto.')
 
         return selections
 

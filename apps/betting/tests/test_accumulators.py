@@ -236,3 +236,35 @@ def test_listar_combinadas(client, user, selections):
     response = autenticar(client, user).get(reverse('accumulated-list'))
     assert response.status_code == 200
     assert len(response.data) == 2
+
+
+@pytest.mark.django_db
+def test_apuesta_combinada_en_vivo_permite_eventos_iniciados(client, user, eventos, selections):
+    """Verifica que apuestas combinadas acepten eventos EN_VIVO aunque hayan iniciado."""
+    s1, s2 = selections
+    e1, e2 = eventos
+    
+    # Marcar ambos eventos como EN_VIVO y que ya hayan iniciado
+    e1.status = Event.Status.EN_VIVO
+    e1.starts_at = timezone.now() - timezone.timedelta(minutes=5)
+    e1.save(update_fields=['status', 'starts_at'])
+    
+    e2.status = Event.Status.EN_VIVO
+    e2.starts_at = timezone.now() - timezone.timedelta(minutes=3)
+    e2.save(update_fields=['status', 'starts_at'])
+
+    response = autenticar(client, user).post(
+        reverse('accumulated-create'),
+        {
+            'selections': [s1.id, s2.id],
+            'stake': '50.0000',
+        },
+        format='json',
+        HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
+    )
+
+    assert response.status_code == 201
+    assert response.data['status'] == BetStatus.ACCEPTED
+    assert AccumulatedBet.objects.count() == 1
+
+

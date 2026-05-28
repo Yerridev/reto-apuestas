@@ -111,17 +111,21 @@ def place_accumulator(user, selections_data, stake, transaction_id=None):
         seen_markets.add(market.id)
 
         event = market.event
-        if event.status != Event.Status.PROGRAMADO:
-            raise ValueError(f'El evento "{event.name}" no esta programado.')
-        if event.starts_at <= timezone.now():
-            raise ValueError(f'El evento "{event.name}" ya inicio.')
+        # Permitir PROGRAMADO o EN_VIVO
+        if event.status not in [Event.Status.PROGRAMADO, Event.Status.EN_VIVO]:
+            raise ValueError(f'El evento "{event.name}" no está disponible para apuestas.')
+        # Para PROGRAMADO: no puede haber iniciado
+        if event.status == Event.Status.PROGRAMADO and event.starts_at <= timezone.now():
+            raise ValueError(f'El evento "{event.name}" ya inició.')
+        # Para EN_VIVO: se permite aunque haya iniciado
         if market.status != Market.Status.ABIERTO:
-            raise ValueError(f'El mercado "{market.name}" no esta abierto.')
+            raise ValueError(f'El mercado "{market.name}" no está abierto.')
         if stake > settings.MAX_BET_STAKE:
             raise ValueError('El monto supera el limite maximo por apuesta.')
 
         combined_odds = (combined_odds * selection.odds).quantize(Decimal('0.0001'))
         legs_info.append({'selection': selection, 'market': market, 'odds': selection.odds})
+
 
     existing = AccumulatedBet.objects.filter(transaction_id=transaction_id, user=user).first()
     if existing:
