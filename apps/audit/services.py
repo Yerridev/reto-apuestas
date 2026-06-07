@@ -113,7 +113,10 @@ def dashboard_metrics():
     lost = Bet.objects.filter(status=BetStatus.SETTLED_LOST)
 
     lost_stakes = lost.aggregate(total=Coalesce(Sum('stake'), Decimal('0.0000')))['total']
-    paid_payouts = sum(((bet.stake * bet.odds).quantize(Decimal('0.0001')) for bet in won), Decimal('0.0000'))
+    paid_payouts = sum(
+        ((bet.stake * bet.odds).quantize(Decimal('0.0001')) for bet in won),
+        Decimal('0.0000'),
+    )
     ggr = (lost_stakes - paid_payouts).quantize(Decimal('0.0001'))
 
     exposure = []
